@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="LAD-A2A Logo" width="120">
+</p>
+
 # Local Agent Discovery for A2A
 
 **An open protocol for discovering A2A-capable agents on local networks.**

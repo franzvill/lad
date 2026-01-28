@@ -6,6 +6,8 @@ repo_name: franzvill/lad
 
 theme:
   name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
   palette:
     - scheme: default
       primary: indigo

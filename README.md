@@ -1,10 +1,16 @@
-# Local Agent Discovery for A2A (LAD-A2A)
+<p align="center">
+  <img src="assets/logo.png" alt="LAD-A2A Logo" width="120">
+</p>
 
-[![Apache License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Spec Version](https://img.shields.io/badge/spec-draft-orange.svg)](spec/spec.md)
-[![Documentation](https://img.shields.io/badge/docs-lad--a2a.org-blue.svg)](https://lad-a2a.org)
+<h1 align="center">Local Agent Discovery for A2A (LAD-A2A)</h1>
 
-**An open protocol for discovering A2A-capable agents on local networks.**
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache License"></a>
+  <a href="spec/spec.md"><img src="https://img.shields.io/badge/spec-draft-orange.svg" alt="Spec Version"></a>
+  <a href="https://lad-a2a.org"><img src="https://img.shields.io/badge/docs-lad--a2a.org-blue.svg" alt="Documentation"></a>
+</p>
+
+<p align="center"><strong>An open protocol for discovering A2A-capable agents on local networks.</strong></p>
 
 LAD-A2A addresses a critical gap in the AI agent ecosystem: when a device joins a network—hotel Wi-Fi, office LAN, cruise ship, hospital campus—how does the user's AI assistant discover and connect to local agents? While [A2A](https://a2a-protocol.org) defines agent-to-agent communication and [MCP](https://modelcontextprotocol.io) defines agent-to-tool integration, **LAD-A2A defines agent discovery**.
 
