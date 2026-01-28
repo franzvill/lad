@@ -62,13 +62,6 @@ Open [http://localhost:8000](http://localhost:8000) to see:
 - A2A JSON-RPC 2.0 communication
 - LLM-based query routing
 
-### Network Simulation
-
-```bash
-cd reference/simulation
-./run.sh
-```
-
 ### Run Locally
 
 ```bash

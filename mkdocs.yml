@@ -40,7 +40,6 @@ nav:
     - Reference Implementation: reference/index.md
     - Server: reference/server.md
     - Client: reference/client.md
-    - Network Simulation: reference/simulation.md
   - Examples: examples.md
   - Contributing: contributing.md
 

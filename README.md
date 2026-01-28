@@ -82,15 +82,6 @@ Open http://localhost:8000 to see:
 
 See [demo/README.md](demo/README.md) for full documentation.
 
-### Docker Network Simulation
-
-```bash
-cd reference/simulation
-./run.sh
-```
-
-This spins up a Docker network with multiple agents and demonstrates the full discovery flow.
-
 ### Run Locally
 
 ```bash
@@ -137,7 +128,7 @@ Local networks are **hostile by default**. LAD-A2A mandates:
 |----------|-------------|
 | 📖 [Specification](https://lad-a2a.org/spec/spec/) | Full protocol specification with JSON schemas |
 | 🔧 [Reference Implementation](https://lad-a2a.org/reference/) | Python server and client libraries |
-| 🧪 [Network Simulation](https://lad-a2a.org/reference/simulation/) | Docker-based multi-agent testing environment |
+| 🎮 [Interactive Demo](https://lad-a2a.org/demo/) | Full working demo with mDNS + A2A |
 | 📚 [Examples](https://lad-a2a.org/examples/) | Integration scenarios and use cases |
 
 ## Use Cases

@@ -52,14 +52,6 @@ python -m client.lad_client
 python -m client.lad_client --url http://localhost:8080 --no-mdns
 ```
 
-### Run Demo
-
-```bash
-python demo.py
-```
-
-This starts a server, runs client discovery, and shows the full flow.
-
 ### Run Tests
 
 ```bash
@@ -101,33 +93,17 @@ The server advertises via DNS-SD:
 }
 ```
 
-## Network Simulation
-
-For realistic end-to-end testing, see the [Docker simulation](simulation/README.md):
-
-```bash
-cd simulation
-./run.sh
-```
-
-This creates an isolated network with a hotel agent and guest device to demonstrate the full discovery flow.
-
 ## Project Structure
 
 ```
 reference/
 ├── server/
-│   ├── lad_server.py      # LAD-A2A server implementation
-│   └── requirements.txt
+│   └── lad_server.py      # LAD-A2A server implementation
 ├── client/
-│   ├── lad_client.py      # LAD-A2A client library
-│   └── requirements.txt
+│   └── lad_client.py      # LAD-A2A client library
 ├── tests/
 │   └── test_lad.py        # Conformance tests (13 tests)
-├── simulation/
-│   ├── docker-compose.yml # Network simulation config
-│   ├── guest_device.py    # Simulated guest device
-│   └── run.sh             # One-command runner
-├── demo.py                # Local demo script
 └── pyproject.toml         # Package configuration
 ```
+
+For a full working demo with A2A communication, see the [interactive demo](../demo/).

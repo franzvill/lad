@@ -156,63 +156,27 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=f"{AGENT_NAME} - Personal Assistant", lifespan=lifespan)
 
 
-async def fetch_agent_from_service(target_url: str, mdns_agent_card_url: Optional[str] = None) -> Optional[DiscoveredAgent]:
-    """Discover agents at a target URL using LAD-A2A.
-
-    Discovery flow:
-    1. Try LAD-A2A discovery endpoint (/.well-known/lad/agents)
-    2. If that fails, fallback to mDNS TXT record 'path' (AgentCard URL)
-    3. Build DiscoveredAgent from AgentCard data
+async def fetch_agent_card(agent_card_url: str, target_url: str) -> Optional[DiscoveredAgent]:
+    """Fetch and parse an A2A AgentCard.
 
     Args:
-        target_url: Base URL of the service
-        mdns_agent_card_url: AgentCard URL from mDNS TXT record (if available)
+        agent_card_url: URL to the AgentCard
+        target_url: Base URL of the service (fallback for A2A endpoint)
     """
-    print(f"🔍 Attempting discovery at {target_url}")
-    agent_card_url = None
-    capabilities_preview = []
-
     try:
         async with httpx.AsyncClient(timeout=5.0) as http:
-            # Step 1: Try LAD-A2A discovery endpoint
-            discovery_url = f"{target_url}/.well-known/lad/agents"
-            print(f"   Trying LAD-A2A endpoint: {discovery_url}")
-
-            try:
-                response = await http.get(discovery_url)
-                if response.status_code == 200:
-                    data = response.json()
-                    agents = data.get("agents", [])
-                    if agents:
-                        agent_info = agents[0]
-                        agent_card_url = agent_info.get("agent_card_url")
-                        capabilities_preview = agent_info.get("capabilities_preview", [])
-                        print(f"   ✅ LAD-A2A discovery: found AgentCard at {agent_card_url}")
-            except Exception as e:
-                print(f"   ⚠️ LAD-A2A endpoint failed: {e}")
-
-            # Step 2: Fallback to mDNS TXT record if LAD discovery didn't work
-            if not agent_card_url and mdns_agent_card_url:
-                print(f"   Fallback: Using mDNS TXT record path: {mdns_agent_card_url}")
-                agent_card_url = mdns_agent_card_url
-
-            if not agent_card_url:
-                print(f"   ❌ No AgentCard URL found")
-                return None
-
-            # Step 3: Fetch the full AgentCard
             print(f"   Fetching AgentCard from {agent_card_url}")
-            card_response = await http.get(agent_card_url)
-            if card_response.status_code != 200:
-                print(f"   ❌ Failed to fetch AgentCard: {card_response.status_code}")
+            response = await http.get(agent_card_url)
+            if response.status_code != 200:
+                print(f"   ❌ Failed to fetch AgentCard: {response.status_code}")
                 return None
 
-            card = card_response.json()
+            card = response.json()
 
             # In A2A, the agent's URL from AgentCard IS the JSON-RPC endpoint
             a2a_url = card.get("url", target_url)
 
-            # Extract skills from AgentCard for better routing
+            # Extract skills from AgentCard for routing
             skills = card.get("skills", [])
             skill_tags = []
             for skill in skills:
@@ -222,16 +186,65 @@ async def fetch_agent_from_service(target_url: str, mdns_agent_card_url: Optiona
             return DiscoveredAgent(
                 name=card.get("name", "Unknown Agent"),
                 description=card.get("description", ""),
-                url=a2a_url,  # This is the A2A JSON-RPC endpoint
+                url=a2a_url,
                 agent_card_url=agent_card_url,
-                capabilities=capabilities_preview + skill_tags,
-                a2a_endpoint=a2a_url  # Same as url in A2A spec
+                capabilities=skill_tags,
+                a2a_endpoint=a2a_url
             )
 
     except Exception as e:
-        print(f"❌ Discovery failed for {target_url}: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"   ❌ Failed to fetch AgentCard: {e}")
+        return None
+
+
+async def discover_agent_via_mdns(service: Dict) -> Optional[DiscoveredAgent]:
+    """Discover agent using mDNS TXT record path (direct AgentCard fetch).
+
+    Per LAD-A2A spec, mDNS TXT records contain the path to the AgentCard,
+    so we fetch it directly without querying the LAD discovery endpoint.
+    """
+    agent_card_url = service.get("agent_card_url")
+    if not agent_card_url:
+        print(f"   ❌ No agent_card_url in mDNS service info")
+        return None
+
+    print(f"🔍 mDNS discovery: fetching AgentCard directly from TXT record path")
+    return await fetch_agent_card(agent_card_url, service["url"])
+
+
+async def discover_agent_via_wellknown(target_url: str) -> Optional[DiscoveredAgent]:
+    """Discover agent using LAD-A2A well-known endpoint.
+
+    Queries /.well-known/lad/agents to get AgentCard URL, then fetches it.
+    """
+    print(f"🔍 Well-known discovery at {target_url}")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as http:
+            discovery_url = f"{target_url}/.well-known/lad/agents"
+            print(f"   Querying LAD endpoint: {discovery_url}")
+
+            response = await http.get(discovery_url)
+            if response.status_code != 200:
+                print(f"   ❌ LAD endpoint returned {response.status_code}")
+                return None
+
+            data = response.json()
+            agents = data.get("agents", [])
+            if not agents:
+                print(f"   ❌ No agents in LAD response")
+                return None
+
+            agent_info = agents[0]
+            agent_card_url = agent_info.get("agent_card_url")
+            if not agent_card_url:
+                print(f"   ❌ No agent_card_url in LAD response")
+                return None
+
+            print(f"   ✅ LAD discovery: found AgentCard at {agent_card_url}")
+            return await fetch_agent_card(agent_card_url, target_url)
+
+    except Exception as e:
+        print(f"   ❌ Well-known discovery failed: {e}")
         return None
 
 
@@ -408,19 +421,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Step 1: Discover services via mDNS
                 mdns_services = await discover_via_mdns()
 
-                # Step 2: For each discovered service, fetch agent info
-                # Use agent_card_url from mDNS TXT record if available
+                # Step 2: For each discovered service, fetch AgentCard directly
+                # using the TXT record 'path' (no extra LAD endpoint call needed)
                 discovered = []
                 for service in mdns_services:
-                    agent = await fetch_agent_from_service(
-                        service["url"],
-                        mdns_agent_card_url=service.get("agent_card_url")
-                    )
+                    agent = await discover_agent_via_mdns(service)
                     if agent:
                         print(f"✅ Found agent: {agent.name} at {agent.url}")
                         discovered.append(agent)
                     else:
-                        print(f"❌ No LAD-A2A agent at {service['url']}")
+                        print(f"❌ Failed to fetch AgentCard for {service['name']}")
 
                 print(f"📊 Discovery complete: {len(discovered)} agents found")
 
@@ -444,9 +454,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     })
 
             elif msg_type == "connect":
-                # Connect to discovered agent
+                # Connect to discovered agent (via well-known endpoint)
                 agent_url = data.get("agent_url")
-                agent = await fetch_agent_from_service(agent_url)
+                agent = await discover_agent_via_wellknown(agent_url)
 
                 if agent:
                     connected_agents[agent_url] = {
