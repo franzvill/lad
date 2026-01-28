@@ -2,6 +2,7 @@
 
 [![Apache License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Spec Version](https://img.shields.io/badge/spec-draft-orange.svg)](spec/spec.md)
+[![Documentation](https://img.shields.io/badge/docs-lad--a2a.org-blue.svg)](https://lad-a2a.org)
 
 <p align="center">
   <img src="assets/discovery-flow.png" alt="LAD-A2A Discovery Flow" width="500">
@@ -105,12 +106,14 @@ Local networks are **hostile by default**. LAD-A2A mandates:
 
 ## Documentation
 
+**📚 Full documentation at [lad-a2a.org](https://lad-a2a.org)**
+
 | Resource | Description |
 |----------|-------------|
-| 📖 [Specification](spec/spec.md) | Full protocol specification with JSON schemas |
-| 🔧 [Reference Implementation](reference/) | Python server and client libraries |
-| 🧪 [Network Simulation](reference/simulation/) | Docker-based multi-agent testing environment |
-| 📚 [Examples](docs/examples.md) | Integration scenarios and use cases |
+| 📖 [Specification](https://lad-a2a.org/spec/spec/) | Full protocol specification with JSON schemas |
+| 🔧 [Reference Implementation](https://lad-a2a.org/reference/) | Python server and client libraries |
+| 🧪 [Network Simulation](https://lad-a2a.org/reference/simulation/) | Docker-based multi-agent testing environment |
+| 📚 [Examples](https://lad-a2a.org/examples/) | Integration scenarios and use cases |
 
 ## Use Cases
 
