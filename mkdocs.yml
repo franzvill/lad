@@ -1,5 +1,5 @@
-site_name: LAD-A2A
-site_description: Local Agent Discovery for A2A - An open protocol for discovering A2A-capable agents on local networks
+site_name: LAD-A2A - Local Agent Discovery Protocol
+site_description: An open protocol for discovering A2A-capable AI agents on local networks. Zero-config discovery via mDNS, well-known endpoints, and DHCP for hotels, offices, hospitals, and smart environments.
 site_url: https://lad-a2a.org/
 repo_url: https://github.com/franzvill/lad
 repo_name: franzvill/lad
@@ -45,6 +45,13 @@ nav:
   - Examples: examples.md
   - Contributing: contributing.md
 
+plugins:
+  - search
+  - social
+  - sitemap:
+      changefreq: weekly
+      priority: 0.8
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
@@ -58,8 +65,25 @@ markdown_extensions:
   - md_in_html
 
 extra:
+  analytics:
+    provider: google
+    property: G-64QS4R6TX9
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/franzvill/lad
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/lad_a2a
+  generator: false
+  meta:
+    - name: keywords
+      content: LAD-A2A, AI agent discovery, A2A protocol, MCP, local network, mDNS, DNS-SD, agent-to-agent, AI agents, open protocol, IoT, smart home
+    - name: author
+      content: LAD-A2A Contributors
+    - property: og:type
+      content: website
+    - property: og:image
+      content: https://lad-a2a.org/assets/logo.png
+    - name: twitter:card
+      content: summary
 
 copyright: Copyright &copy; 2025 LAD-A2A Contributors | Apache 2.0 License

@@ -1,3 +1,8 @@
+---
+title: LAD-A2A - Local Agent Discovery Protocol for AI Agents
+description: Open protocol for discovering A2A-capable AI agents on local networks using mDNS, DNS-SD, and well-known endpoints. Works with hotels, offices, hospitals, and IoT.
+---
+
 <p align="center">
   <img src="assets/logo.png" alt="LAD-A2A Logo" width="120">
 </p>
