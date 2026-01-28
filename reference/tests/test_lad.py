@@ -179,6 +179,20 @@ class TestAgentCardEndpoint:
         assert "url" in data
         assert "capabilities" in data
         assert "skills" in data
+        assert "protocolVersions" in data  # Required by A2A spec
+        assert "1.0" in data["protocolVersions"]
+
+    @pytest.mark.asyncio
+    async def test_agent_card_url_is_valid_endpoint(self, app):
+        """AgentCard url field is a valid A2A JSON-RPC endpoint."""
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/.well-known/agent.json")
+
+        data = response.json()
+
+        # url should be a full URL (A2A JSON-RPC endpoint), not a relative path
+        assert data["url"].startswith("http://") or data["url"].startswith("https://")
+        assert "/a2a" not in data["url"]  # Should be base URL, not /a2a path
 
     @pytest.mark.asyncio
     async def test_agent_card_skills_match_capabilities_preview(self, app):

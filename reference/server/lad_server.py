@@ -127,28 +127,34 @@ class LADServer:
         return response
 
     def get_agent_card(self) -> dict:
-        """Generate A2A AgentCard."""
+        """Generate A2A AgentCard per A2A protocol specification."""
         base_url = f"http://{self._get_local_ip()}:{self.port}"
 
         return {
             "name": self.agent_config.name,
             "description": self.agent_config.description,
+            "url": base_url,  # A2A JSON-RPC endpoint (base URL per A2A spec)
             "version": self.agent_config.version,
-            "url": f"{base_url}/a2a",
+            "protocolVersions": ["1.0"],  # Required by A2A spec
             "capabilities": {
                 "streaming": False,
                 "pushNotifications": False,
+                "stateTransitionHistory": False,
             },
+            "defaultInputModes": ["text"],  # A2A uses "text", not "text/plain"
+            "defaultOutputModes": ["text"],
             "skills": [
                 {
                     "id": skill,
                     "name": skill.replace("-", " ").title(),
                     "description": f"Provides {skill} functionality",
+                    "tags": [skill],
                 }
                 for skill in self.agent_config.capabilities_preview
             ],
-            "defaultInputModes": ["text/plain"],
-            "defaultOutputModes": ["text/plain"],
+            "provider": {
+                "organization": self.network_realm or self.agent_config.name,
+            },
         }
 
 

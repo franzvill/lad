@@ -1,0 +1,9 @@
+# LAD-A2A Demo Requirements
+fastapi>=0.109.0
+python-dotenv>=1.0.0
+uvicorn[standard]>=0.27.0
+openai>=1.10.0
+httpx>=0.26.0
+pydantic>=2.5.0
+zeroconf>=0.131.0
+websockets>=12.0

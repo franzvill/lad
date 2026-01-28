@@ -2,6 +2,15 @@
 
 Reference implementation of the LAD-A2A (Local Agent Discovery for A2A) protocol.
 
+## Scope
+
+This reference implementation covers **LAD-A2A discovery only**:
+- mDNS/DNS-SD advertisement (`_a2a._tcp`)
+- Well-known discovery endpoint (`/.well-known/lad/agents`)
+- A2A AgentCard serving (`/.well-known/agent.json`)
+
+**Not included:** A2A JSON-RPC communication (SendMessage, GetTask, etc.). For a full working demo with A2A communication, see the [interactive demo](../demo/).
+
 ## Components
 
 - **Server** (`server/lad_server.py`): Discovery server with mDNS + well-known endpoint
@@ -114,7 +123,7 @@ reference/
 │   ├── lad_client.py      # LAD-A2A client library
 │   └── requirements.txt
 ├── tests/
-│   └── test_lad.py        # Conformance tests (12 tests)
+│   └── test_lad.py        # Conformance tests (13 tests)
 ├── simulation/
 │   ├── docker-compose.yml # Network simulation config
 │   ├── guest_device.py    # Simulated guest device

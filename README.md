@@ -4,9 +4,9 @@
 [![Spec Version](https://img.shields.io/badge/spec-draft-orange.svg)](spec/spec.md)
 [![Documentation](https://img.shields.io/badge/docs-lad--a2a.org-blue.svg)](https://lad-a2a.org)
 
-<p align="center">
-  <img src="assets/discovery-flow.png" alt="LAD-A2A Discovery Flow" width="500">
-</p>
+https://github.com/franzvill/lad/raw/main/assets/demo.mp4
+
+<p align="center"><em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em></p>
 
 **An open protocol for discovering A2A-capable agents on local networks.**
 
@@ -57,7 +57,26 @@ LAD-A2A supports multiple discovery paths with automatic fallback:
 
 ## Getting Started
 
-### Try the Network Simulation
+### Interactive Demo (Recommended)
+
+Experience LAD-A2A with a fully working demo featuring two AI agents:
+
+```bash
+cd demo
+cp .env.example .env
+# Add your OpenAI API key to .env
+./run_demo.sh
+```
+
+Open http://localhost:8000 to see:
+- Real mDNS discovery (`_a2a._tcp.local`)
+- LAD-A2A protocol in action
+- A2A JSON-RPC 2.0 communication
+- LLM-based query routing
+
+See [demo/README.md](demo/README.md) for full documentation.
+
+### Docker Network Simulation
 
 ```bash
 cd reference/simulation
