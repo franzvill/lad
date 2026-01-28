@@ -39,7 +39,7 @@ LAD-A2A is the **first handshake**. It answers "who's here?" so that A2A can ans
 
 <div align="center">
 
-<video controls autoplay loop muted playsinline width="100%">
+<video controls autoplay loop muted playsinline width="70%">
   <source src="assets/LAD.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
