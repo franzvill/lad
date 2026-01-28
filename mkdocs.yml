@@ -47,10 +47,6 @@ nav:
 
 plugins:
   - search
-  - social
-  - sitemap:
-      changefreq: weekly
-      priority: 0.8
 
 markdown_extensions:
   - pymdownx.highlight:
