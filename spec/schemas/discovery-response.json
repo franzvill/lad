@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lad-a2a.dev/schemas/discovery-response.json",
+  "$id": "https://lad-a2a.org/schemas/discovery-response.json",
   "title": "LAD-A2A Discovery Response",
   "description": "Response format for the /.well-known/lad/agents endpoint",
   "type": "object",

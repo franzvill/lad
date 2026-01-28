@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lad-a2a.dev/schemas/mdns-txt-record.json",
+  "$id": "https://lad-a2a.org/schemas/mdns-txt-record.json",
   "title": "LAD-A2A mDNS TXT Record",
   "description": "Schema for mDNS TXT record key-value pairs",
   "type": "object",

@@ -2,7 +2,7 @@
 
 **Version:** 0.1.0-draft
 **Status:** Draft
-**Date:** 2025-01-28
+**Date:** 2026-01-28
 
 ## Abstract
 
@@ -102,7 +102,7 @@ When mDNS is unavailable, clients SHOULD attempt discovery on the network's capt
 
 For controlled networks, a DHCP option MAY provide the discovery URL:
 ```
-a2a_discovery_url=https://net.example/.well-known/lad/agents
+lad_discovery_url=https://net.example/.well-known/lad/agents
 ```
 
 **Note:** DHCP option number pending IANA registration.
@@ -328,5 +328,5 @@ This specification requests:
 
 ## Appendix B: Changelog
 
-### v0.1.0-draft (2025-01-28)
+### v0.1.0-draft (2026-01-28)
 - Initial draft specification
