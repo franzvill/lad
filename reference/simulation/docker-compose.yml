@@ -1,0 +1,41 @@
+# LAD-A2A Network Simulation
+# Simulates a hotel network with agent discovery
+
+services:
+  # Hotel's AI Concierge Agent
+  hotel-agent:
+    build:
+      context: ..
+      dockerfile: simulation/Dockerfile.server
+    container_name: hotel-concierge
+    hostname: hotel-agent
+    networks:
+      hotel-network:
+        aliases:
+          - concierge.grandhotel.local
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Guest device that joins the network
+  guest-device:
+    build:
+      context: ..
+      dockerfile: simulation/Dockerfile.client
+    container_name: guest-device
+    hostname: guest-phone
+    networks:
+      - hotel-network
+    environment:
+      - LAD_SERVER_URL=http://hotel-agent:8080
+    depends_on:
+      hotel-agent:
+        condition: service_healthy
+
+networks:
+  hotel-network:
+    driver: bridge

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lad-a2a.dev/schemas/mdns-txt-record.json",
+  "title": "LAD-A2A mDNS TXT Record",
+  "description": "Schema for mDNS TXT record key-value pairs",
+  "type": "object",
+  "required": ["path", "v"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the A2A AgentCard endpoint",
+      "default": "/.well-known/agent.json",
+      "examples": ["/.well-known/agent.json", "/.well-known/agent-card.json"]
+    },
+    "v": {
+      "type": "string",
+      "description": "LAD-A2A version number",
+      "pattern": "^\\d+$",
+      "examples": ["1"]
+    },
+    "org": {
+      "type": "string",
+      "description": "Organization name (optional)",
+      "examples": ["ExampleHotel"]
+    },
+    "id": {
+      "type": "string",
+      "description": "Agent DID or identifier (optional)",
+      "examples": ["did:web:examplehotel.com#concierge"]
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lad-a2a.dev/schemas/discovery-response.json",
+  "title": "LAD-A2A Discovery Response",
+  "description": "Response format for the /.well-known/lad/agents endpoint",
+  "type": "object",
+  "required": ["version", "agents"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "LAD-A2A protocol version",
+      "pattern": "^\\d+\\.\\d+$",
+      "examples": ["1.0"]
+    },
+    "network": {
+      "type": "object",
+      "description": "Optional network metadata",
+      "properties": {
+        "ssid": {
+          "type": "string",
+          "description": "Network SSID if applicable",
+          "examples": ["ExampleHotel-Guest"]
+        },
+        "realm": {
+          "type": "string",
+          "description": "Network realm or domain",
+          "examples": ["examplehotel.com"]
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "description": "List of discoverable A2A agents",
+      "items": {
+        "$ref": "#/$defs/agent"
+      }
+    }
+  },
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "required": ["name", "agent_card_url"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable agent name",
+          "examples": ["Example Hotel Concierge"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of the agent's purpose",
+          "examples": ["Hotel services and information"]
+        },
+        "role": {
+          "type": "string",
+          "description": "Agent role category",
+          "examples": ["hotel", "it-support", "facilities"]
+        },
+        "agent_card_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the A2A AgentCard (typically /.well-known/agent.json)",
+          "examples": ["https://concierge.examplehotel.com/.well-known/agent.json"]
+        },
+        "capabilities_preview": {
+          "type": "array",
+          "description": "Lightweight summary of capabilities for discovery UI. Full definitions are in the A2A AgentCard.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["property-info", "amenities", "housekeeping"]]
+        },
+        "id": {
+          "type": "string",
+          "description": "Optional DID or unique identifier",
+          "examples": ["did:web:examplehotel.com#concierge"]
+        }
+      }
+    }
+  }
+}
