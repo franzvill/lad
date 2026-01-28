@@ -4,10 +4,6 @@
 [![Spec Version](https://img.shields.io/badge/spec-draft-orange.svg)](spec/spec.md)
 [![Documentation](https://img.shields.io/badge/docs-lad--a2a.org-blue.svg)](https://lad-a2a.org)
 
-https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302
-
-<p align="center"><em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em></p>
-
 **An open protocol for discovering A2A-capable agents on local networks.**
 
 LAD-A2A addresses a critical gap in the AI agent ecosystem: when a device joins a network—hotel Wi-Fi, office LAN, cruise ship, hospital campus—how does the user's AI assistant discover and connect to local agents? While [A2A](https://a2a-protocol.org) defines agent-to-agent communication and [MCP](https://modelcontextprotocol.io) defines agent-to-tool integration, **LAD-A2A defines agent discovery**.
@@ -54,6 +50,16 @@ LAD-A2A supports multiple discovery paths with automatic fallback:
 | **Well-Known Endpoint** | Captive Portals, Web | `/.well-known/lad/agents` on the network domain |
 | **DHCP Option** | Enterprise Networks | Custom option containing discovery URL |
 | **QR/NFC** | Physical Fallback | Direct link to AgentCard for restricted networks |
+
+## See It In Action
+
+<div align="center">
+
+https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302
+
+<em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em>
+
+</div>
 
 ## Getting Started
 
