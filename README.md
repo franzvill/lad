@@ -38,7 +38,7 @@ LAD-A2A solves this by providing:
 
 | Protocol | Role | Specification |
 |----------|------|---------------|
-| **LAD-A2A** | Discovery & Trust Bootstrap | This repository |
+| **LAD-A2A** | Discovery & Trust Bootstrap | [lad-a2a.org](https://lad-a2a.org) |
 | **A2A** | Agent-to-Agent Communication | [a2a-protocol.org](https://a2a-protocol.org) |
 | **MCP** | Agent-to-Tools/Data | [modelcontextprotocol.io](https://modelcontextprotocol.io) |
 
