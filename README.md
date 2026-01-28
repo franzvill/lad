@@ -4,7 +4,7 @@
 [![Spec Version](https://img.shields.io/badge/spec-draft-orange.svg)](spec/spec.md)
 [![Documentation](https://img.shields.io/badge/docs-lad--a2a.org-blue.svg)](https://lad-a2a.org)
 
-https://github.com/franzvill/lad/raw/main/assets/demo.mp4
+https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302
 
 <p align="center"><em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em></p>
 
@@ -152,21 +152,6 @@ We welcome contributions to enhance the LAD-A2A protocol.
 - **Questions & Discussions:** [GitHub Discussions](https://github.com/franzvill/lad/discussions)
 - **Issues & Feedback:** [GitHub Issues](https://github.com/franzvill/lad/issues)
 - **Contribution Guide:** [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## Roadmap
-
-### Protocol Enhancements
-
-- **Registry Integration:** Optional central registry for cross-network agent discovery
-- **Mutual TLS:** Support for enterprise networks requiring client certificates
-- **Capability Negotiation:** Dynamic capability queries beyond static AgentCard declarations
-- **Privacy Extensions:** Anonymous discovery for privacy-sensitive environments
-
-### Reference Implementations
-
-- Go SDK
-- JavaScript/TypeScript SDK
-- Rust SDK
 
 ## License
 
