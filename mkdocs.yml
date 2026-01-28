@@ -1,0 +1,64 @@
+site_name: LAD-A2A
+site_description: Local Agent Discovery for A2A - An open protocol for discovering A2A-capable agents on local networks
+site_url: https://franzvill.github.io/lad/
+repo_url: https://github.com/franzvill/lad
+repo_name: franzvill/lad
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Specification:
+    - Overview: spec/index.md
+    - Full Specification: spec/spec.md
+    - JSON Schemas: spec/schemas.md
+  - Implementation:
+    - Reference Implementation: reference/index.md
+    - Server: reference/server.md
+    - Client: reference/client.md
+    - Network Simulation: reference/simulation.md
+  - Examples: examples.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - attr_list
+  - md_in_html
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/franzvill/lad
+
+copyright: Copyright &copy; 2025 LAD-A2A Contributors | Apache 2.0 License
