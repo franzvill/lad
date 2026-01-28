@@ -2,6 +2,9 @@
 
 Real-world integration scenarios for LAD-A2A.
 
+!!! tip "Interactive Demo"
+    Want to see LAD-A2A in action? Try the [interactive demo](https://github.com/franzvill/lad/tree/main/demo) with real mDNS discovery and A2A communication.
+
 ## Hotel Concierge
 
 A hotel deploys an AI concierge that guests can discover automatically when they connect to the hotel Wi-Fi.

@@ -15,6 +15,16 @@ With LAD-A2A, agents can:
 - **Obtain user consent** before establishing connections
 - **Negotiate capabilities** via standard A2A mechanisms
 
+## See It In Action
+
+<div align="center">
+
+https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302
+
+<em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em>
+
+</div>
+
 ## Why LAD-A2A?
 
 AI agents are increasingly capable, but they remain isolated from their physical environment. A guest's AI assistant has no way to discover the hotel's concierge agent. An employee's assistant can't find the building's room booking agent. A patient's assistant doesn't know the hospital offers a wayfinding agent.
@@ -50,16 +60,6 @@ LAD-A2A supports multiple discovery paths with automatic fallback:
 | **Well-Known Endpoint** | Captive Portals, Web | `/.well-known/lad/agents` on the network domain |
 | **DHCP Option** | Enterprise Networks | Custom option containing discovery URL |
 | **QR/NFC** | Physical Fallback | Direct link to AgentCard for restricted networks |
-
-## See It In Action
-
-<div align="center">
-
-https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302
-
-<em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em>
-
-</div>
 
 ## Getting Started
 

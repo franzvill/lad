@@ -2,10 +2,6 @@
 
 **An open protocol for discovering A2A-capable agents on local networks.**
 
-<p align="center">
-  <img src="assets/discovery-flow.png" alt="LAD-A2A Discovery Flow" width="500">
-</p>
-
 ---
 
 ## The Problem
@@ -39,9 +35,34 @@ LAD-A2A provides:
 
 LAD-A2A is the **first handshake**. It answers "who's here?" so that A2A can answer "what can you do?"
 
+## See It In Action
+
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302" controls autoplay loop muted playsinline width="100%"></video>
+</div>
+<p align="center"><em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em></p>
+
 ## Quick Start
 
-### Try the Network Simulation
+### Interactive Demo (Recommended)
+
+Experience LAD-A2A with a fully working demo featuring two AI agents:
+
+```bash
+cd demo
+cp .env.example .env
+# Add your OpenAI API key to .env
+./run_demo.sh
+```
+
+Open [http://localhost:8000](http://localhost:8000) to see:
+
+- Real mDNS discovery (`_a2a._tcp.local`)
+- LAD-A2A protocol in action
+- A2A JSON-RPC 2.0 communication
+- LLM-based query routing
+
+### Network Simulation
 
 ```bash
 cd reference/simulation
