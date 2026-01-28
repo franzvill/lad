@@ -38,7 +38,12 @@ LAD-A2A is the **first handshake**. It answers "who's here?" so that A2A can ans
 ## See It In Action
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/a6a06e95-729b-465a-857c-6a87da52b302" controls autoplay loop muted playsinline width="100%"></video>
+
+<video controls autoplay loop muted playsinline width="100%">
+  <source src="assets/LAD.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
 </div>
 <p align="center"><em>Real mDNS discovery → LAD-A2A protocol → A2A JSON-RPC communication</em></p>
 

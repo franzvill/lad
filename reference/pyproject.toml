@@ -39,7 +39,6 @@ dev = [
 [project.scripts]
 lad-server = "server.lad_server:main"
 lad-client = "client.lad_client:main"
-lad-demo = "demo:main"
 
 [tool.setuptools.packages.find]
 include = ["server*", "client*"]
