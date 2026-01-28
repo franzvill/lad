@@ -1,6 +1,6 @@
 site_name: LAD-A2A
 site_description: Local Agent Discovery for A2A - An open protocol for discovering A2A-capable agents on local networks
-site_url: https://franzvill.github.io/lad/
+site_url: https://lad-a2a.org/
 repo_url: https://github.com/franzvill/lad
 repo_name: franzvill/lad
 
