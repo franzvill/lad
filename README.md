@@ -94,12 +94,14 @@ See [demo/README.md](demo/README.md) for full documentation.
 cd reference
 pip install -e .
 
-# Start a discovery server
+# Start a discovery server (development only)
 python -m server.lad_server --name "My Agent" --port 8080
 
 # Discover agents (in another terminal)
 python -m client.lad_client --url http://localhost:8080
 ```
+
+> **Note:** The example above uses HTTP for local development. In production, **TLS is required** per the [security spec](spec/spec.md#4-security-requirements). All HTTP endpoints MUST use TLS 1.2+.
 
 ## Example: Hotel Concierge
 

@@ -82,12 +82,15 @@ Open [http://localhost:8000](http://localhost:8000) to see:
 cd reference
 pip install -e .
 
-# Start a discovery server
+# Start a discovery server (development only)
 python -m server.lad_server --name "My Agent" --port 8080
 
 # Discover agents
 python -m client.lad_client --url http://localhost:8080
 ```
+
+!!! warning "TLS Required in Production"
+    The example above uses HTTP for local development only. In production, **all endpoints MUST use TLS 1.2+** per the [security requirements](spec/spec.md#4-security-requirements).
 
 ## Use Cases
 

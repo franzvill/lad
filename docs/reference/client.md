@@ -11,6 +11,9 @@ pip install -e .
 
 ## CLI Usage
 
+!!! warning "TLS Required in Production"
+    Examples use HTTP for local development. In production, **all endpoints MUST use TLS 1.2+**.
+
 ### Discover via Well-Known
 
 ```bash
