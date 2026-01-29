@@ -59,6 +59,10 @@ class DiscoveredAgent(BaseModel):
     agent_card_url: str
     capabilities: List[str]
     a2a_endpoint: Optional[str] = None
+    # Security verification fields
+    verified: bool = False
+    verification_method: Optional[str] = None  # "tls", "jws", or None
+    security_warnings: List[str] = []
 
 
 class A2AServiceListener(ServiceListener):
@@ -89,6 +93,7 @@ class A2AServiceListener(ServiceListener):
 
                 # Build AgentCard URL from TXT record 'path' (per LAD-A2A spec)
                 agent_card_path = properties.get("path", "/.well-known/agent.json")
+                # Note: Using HTTP for local demo - production MUST use HTTPS
                 base_url = f"http://{host}:{port}"
 
                 service_info = {
@@ -97,7 +102,8 @@ class A2AServiceListener(ServiceListener):
                     "port": port,
                     "url": base_url,
                     "agent_card_url": f"{base_url}{agent_card_path}",  # From TXT record
-                    "properties": properties
+                    "properties": properties,
+                    "is_secure": False  # HTTP = not secure
                 }
                 print(f"🔍 mDNS: Found service {service_info['name']} at {service_info['url']}")
                 print(f"   TXT records: path={agent_card_path}, v={properties.get('v')}, org={properties.get('org')}")
@@ -149,19 +155,23 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown"""
     print(f"\n✨ {AGENT_NAME} - Personal AI Assistant")
     print(f"   Web Interface: http://localhost:{PORT}")
-    print(f"   Ready to discover local agents!\n")
+    print(f"   Ready to discover local agents!")
+    print(f"")
+    print(f"   ⚠️  SECURITY: Demo mode - agents will be marked as UNVERIFIED")
+    print(f"   ⚠️  Production requires HTTPS for verified connections\n")
     yield
 
 
 app = FastAPI(title=f"{AGENT_NAME} - Personal Assistant", lifespan=lifespan)
 
 
-async def fetch_agent_card(agent_card_url: str, target_url: str) -> Optional[DiscoveredAgent]:
+async def fetch_agent_card(agent_card_url: str, target_url: str, is_secure: bool = False) -> Optional[DiscoveredAgent]:
     """Fetch and parse an A2A AgentCard.
 
     Args:
         agent_card_url: URL to the AgentCard
         target_url: Base URL of the service (fallback for A2A endpoint)
+        is_secure: Whether the connection uses TLS
     """
     try:
         async with httpx.AsyncClient(timeout=5.0) as http:
@@ -183,13 +193,28 @@ async def fetch_agent_card(agent_card_url: str, target_url: str) -> Optional[Dis
                 skill_tags.extend(skill.get("tags", []))
                 skill_tags.append(skill.get("name", ""))
 
+            # Determine verification status based on transport security
+            # Per LAD-A2A spec: TLS is mandatory for production
+            verified = is_secure or agent_card_url.startswith("https://")
+            verification_method = "tls" if verified else None
+
+            # Build security warnings for unverified agents
+            security_warnings = []
+            if not verified:
+                security_warnings.append("Connection is not encrypted (HTTP)")
+                security_warnings.append("Agent identity cannot be verified")
+                security_warnings.append("Data may be intercepted or modified")
+
             return DiscoveredAgent(
                 name=card.get("name", "Unknown Agent"),
                 description=card.get("description", ""),
                 url=a2a_url,
                 agent_card_url=agent_card_url,
                 capabilities=skill_tags,
-                a2a_endpoint=a2a_url
+                a2a_endpoint=a2a_url,
+                verified=verified,
+                verification_method=verification_method,
+                security_warnings=security_warnings
             )
 
     except Exception as e:
@@ -208,8 +233,10 @@ async def discover_agent_via_mdns(service: Dict) -> Optional[DiscoveredAgent]:
         print(f"   ❌ No agent_card_url in mDNS service info")
         return None
 
+    is_secure = service.get("is_secure", False)
     print(f"🔍 mDNS discovery: fetching AgentCard directly from TXT record path")
-    return await fetch_agent_card(agent_card_url, service["url"])
+    print(f"   Security: {'TLS enabled' if is_secure else '⚠️  HTTP (unverified)'}")
+    return await fetch_agent_card(agent_card_url, service["url"], is_secure=is_secure)
 
 
 async def discover_agent_via_wellknown(target_url: str) -> Optional[DiscoveredAgent]:
@@ -218,6 +245,9 @@ async def discover_agent_via_wellknown(target_url: str) -> Optional[DiscoveredAg
     Queries /.well-known/lad/agents to get AgentCard URL, then fetches it.
     """
     print(f"🔍 Well-known discovery at {target_url}")
+    is_secure = target_url.startswith("https://")
+    print(f"   Security: {'TLS enabled' if is_secure else '⚠️  HTTP (unverified)'}")
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as http:
             discovery_url = f"{target_url}/.well-known/lad/agents"
@@ -241,7 +271,7 @@ async def discover_agent_via_wellknown(target_url: str) -> Optional[DiscoveredAg
                 return None
 
             print(f"   ✅ LAD discovery: found AgentCard at {agent_card_url}")
-            return await fetch_agent_card(agent_card_url, target_url)
+            return await fetch_agent_card(agent_card_url, target_url, is_secure=is_secure)
 
     except Exception as e:
         print(f"   ❌ Well-known discovery failed: {e}")
@@ -443,7 +473,9 @@ async def websocket_endpoint(websocket: WebSocket):
                             "description": agent.description,
                             "url": agent.url,
                             "capabilities": agent.capabilities,
-                            "verified": True
+                            "verified": agent.verified,
+                            "verification_method": agent.verification_method,
+                            "security_warnings": agent.security_warnings
                         }
                     })
                 else:

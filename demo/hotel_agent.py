@@ -28,6 +28,7 @@ load_dotenv()
 HOTEL_NAME = "Grand Azure Hotel"
 HOTEL_DOMAIN = "grandazurehotel.local"
 PORT = 8001
+# Note: Using HTTP for local demo - production MUST use HTTPS per LAD-A2A spec
 AGENT_URL = f"http://localhost:{PORT}"
 
 # OpenAI client
@@ -134,6 +135,9 @@ async def lifespan(app: FastAPI):
     print(f"   LAD-A2A Discovery: {AGENT_URL}/.well-known/lad/agents")
     print(f"   A2A AgentCard: {AGENT_URL}/.well-known/agent.json")
     print(f"   A2A Endpoint: {AGENT_URL}/ (JSON-RPC 2.0)")
+    print(f"")
+    print(f"   ⚠️  SECURITY: Running in DEMO MODE (HTTP)")
+    print(f"   ⚠️  Production deployments MUST use HTTPS")
 
     # Advertise via mDNS
     try:

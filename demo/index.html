@@ -626,6 +626,107 @@
       border-radius: 6px;
     }
 
+    /* Security warning styles */
+    .security-warning {
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid var(--accent-red);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .security-warning-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent-red);
+      font-weight: 500;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .security-warning-header svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .security-warning-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .security-warning-list li {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 4px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .security-warning-list li::before {
+      content: '•';
+      position: absolute;
+      left: 6px;
+      color: var(--accent-red);
+    }
+
+    .consent-checkbox {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+
+    .consent-checkbox input {
+      margin-top: 2px;
+      accent-color: var(--accent-gold);
+    }
+
+    .consent-checkbox label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      line-height: 1.5;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary:disabled:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Verified badge styles */
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .verified-badge.secure {
+      background: rgba(74, 222, 128, 0.1);
+      color: var(--accent-green);
+    }
+
+    .verified-badge.insecure {
+      background: rgba(248, 113, 113, 0.1);
+      color: var(--accent-red);
+    }
+
     .discovery-actions {
       display: flex;
       gap: 12px;
@@ -955,12 +1056,14 @@
           <div class="agent-logo">🏨</div>
           <div class="agent-info">
             <h3 id="discoveredAgentName">Grand Azure Hotel</h3>
-            <p>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
-              <span id="discoveredAgentDomain">Verified • grandazurehotel.local</span>
+            <p id="discoveredAgentDomain">
+              <span class="verified-badge secure" id="verifiedBadge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span id="verifiedText">Verified</span>
+              </span>
             </p>
           </div>
         </div>
@@ -968,6 +1071,27 @@
           <span class="capability-tag">Room Service</span>
           <span class="capability-tag">Spa Booking</span>
           <span class="capability-tag">Concierge</span>
+        </div>
+      </div>
+
+      <!-- Security Warning (shown for unverified agents) -->
+      <div class="security-warning" id="securityWarning" style="display: none;">
+        <div class="security-warning-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Security Warning
+        </div>
+        <ul class="security-warning-list" id="securityWarningList">
+          <li>Connection is not encrypted (HTTP)</li>
+          <li>Agent identity cannot be verified</li>
+          <li>Data may be intercepted or modified</li>
+        </ul>
+        <div class="consent-checkbox" id="consentCheckboxContainer">
+          <input type="checkbox" id="consentCheckbox">
+          <label for="consentCheckbox">I understand the risks and want to connect to this unverified agent anyway. This is for demonstration purposes only.</label>
         </div>
       </div>
 
@@ -1035,6 +1159,11 @@
     const discoveredAgentName = document.getElementById('discoveredAgentName');
     const discoveredAgentDomain = document.getElementById('discoveredAgentDomain');
     const discoveredCapabilities = document.getElementById('discoveredCapabilities');
+    const securityWarning = document.getElementById('securityWarning');
+    const securityWarningList = document.getElementById('securityWarningList');
+    const consentCheckbox = document.getElementById('consentCheckbox');
+    const verifiedBadge = document.getElementById('verifiedBadge');
+    const verifiedText = document.getElementById('verifiedText');
 
     // Connect to WebSocket
     function connectWebSocket() {
@@ -1099,7 +1228,42 @@
 
           // Update popup with agent info
           discoveredAgentName.textContent = data.agent.name;
-          discoveredAgentDomain.textContent = `Verified • ${data.agent.url.replace('http://', '')}`;
+
+          // Update verification badge based on actual verification status
+          if (data.agent.verified) {
+            verifiedBadge.className = 'verified-badge secure';
+            verifiedBadge.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <span>Verified via ${data.agent.verification_method || 'TLS'}</span>
+            `;
+            securityWarning.style.display = 'none';
+            connectBtn.disabled = false;
+          } else {
+            verifiedBadge.className = 'verified-badge insecure';
+            verifiedBadge.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span>Unverified</span>
+            `;
+
+            // Show security warnings
+            securityWarning.style.display = 'block';
+            if (data.agent.security_warnings && data.agent.security_warnings.length > 0) {
+              securityWarningList.innerHTML = data.agent.security_warnings
+                .map(warning => `<li>${warning}</li>`)
+                .join('');
+            }
+
+            // Disable connect button until consent is given
+            connectBtn.disabled = true;
+            consentCheckbox.checked = false;
+          }
 
           // Update capabilities
           discoveredCapabilities.innerHTML = data.agent.capabilities
@@ -1234,27 +1398,49 @@
       popupOverlay.classList.remove('visible');
       connectingOverlay.classList.add('visible');
 
-      setTimeout(() => {
-        connectingText.textContent = 'Verifying Identity';
-        connectingSubtext.textContent = 'Checking agent certificate...';
-      }, 800);
+      if (discoveredAgent.verified) {
+        setTimeout(() => {
+          connectingText.textContent = 'Verifying Identity';
+          connectingSubtext.textContent = 'Checking agent certificate...';
+        }, 800);
 
-      setTimeout(() => {
-        connectingText.textContent = 'Establishing A2A Channel';
-        connectingSubtext.textContent = 'Setting up secure communication...';
+        setTimeout(() => {
+          connectingText.textContent = 'Establishing A2A Channel';
+          connectingSubtext.textContent = 'Setting up secure communication...';
 
-        // Send connect request
-        ws.send(JSON.stringify({
-          type: 'connect',
-          agent_url: discoveredAgent.url
-        }));
-      }, 1600);
+          // Send connect request
+          ws.send(JSON.stringify({
+            type: 'connect',
+            agent_url: discoveredAgent.url
+          }));
+        }, 1600);
+      } else {
+        // Unverified agent - skip verification steps, show warning
+        connectingText.textContent = 'Connecting';
+        connectingSubtext.textContent = '⚠️ Unverified connection (demo mode)';
+
+        setTimeout(() => {
+          connectingText.textContent = 'Establishing A2A Channel';
+          connectingSubtext.textContent = '⚠️ Connection not encrypted';
+
+          // Send connect request
+          ws.send(JSON.stringify({
+            type: 'connect',
+            agent_url: discoveredAgent.url
+          }));
+        }, 800);
+      }
     });
 
     ignoreBtn.addEventListener('click', () => {
       popupOverlay.classList.remove('visible');
       addMessage('assistant', "No problem! I'm still here to help. If you change your mind, just let me know.");
       quickActions.classList.remove('hidden');
+    });
+
+    // Handle consent checkbox for unverified agents
+    consentCheckbox.addEventListener('change', () => {
+      connectBtn.disabled = !consentCheckbox.checked;
     });
 
     document.querySelectorAll('.quick-action').forEach(btn => {
