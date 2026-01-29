@@ -256,6 +256,52 @@ class TestLADClient:
         assert agent.agent_card is None  # Not fetched yet
 
 
+# Health Endpoint Tests
+
+class TestHealthEndpoint:
+    """Test /health endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_health_returns_status(self, lad_server):
+        """Health endpoint returns status and agent name."""
+        app = create_app(lad_server)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/health")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "ok"
+            assert data["agent"] == lad_server.agent_config.name
+            assert "mdns_enabled" in data
+            assert "tls_enabled" in data
+            assert "signing_enabled" in data
+
+    @pytest.mark.asyncio
+    async def test_health_reflects_configuration(self, agent_config):
+        """Health endpoint reflects server configuration."""
+        from server.lad_server import TLSConfig
+
+        server = LADServer(
+            agent_config=agent_config,
+            enable_mdns=False,
+            tls_config=TLSConfig(enabled=False),
+        )
+        app = create_app(server)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.get("/health")
+
+            data = response.json()
+            assert data["mdns_enabled"] is False
+            assert data["tls_enabled"] is False
+            assert data["signing_enabled"] is False
+
+
 # Schema Validation Tests
 
 class TestSchemaConformance:

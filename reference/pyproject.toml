@@ -28,6 +28,8 @@ dependencies = [
     "uvicorn>=0.27.0",
     "httpx>=0.26.0",
     "pydantic>=2.0.0",
+    "pyjwt>=2.8.0",
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]
@@ -35,13 +37,16 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
 ]
+config = [
+    "pyyaml>=6.0",
+]
 
 [project.scripts]
 lad-server = "server.lad_server:main"
 lad-client = "client.lad_client:main"
 
 [tool.setuptools.packages.find]
-include = ["server*", "client*"]
+include = ["server*", "client*", "common*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -101,8 +101,14 @@ reference/
 │   └── lad_server.py      # LAD-A2A server implementation
 ├── client/
 │   └── lad_client.py      # LAD-A2A client library
+├── common/
+│   ├── __init__.py        # Common module exports
+│   ├── signing.py         # AgentCard signing (JWS)
+│   └── config.py          # Configuration file support
 ├── tests/
-│   └── test_lad.py        # Conformance tests (13 tests)
+│   ├── test_lad.py        # Conformance tests
+│   ├── test_security.py   # Security tests (TLS, signing, consent)
+│   └── test_config.py     # Configuration tests
 └── pyproject.toml         # Package configuration
 ```
 

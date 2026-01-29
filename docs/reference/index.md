@@ -8,7 +8,14 @@ Python reference implementation of the LAD-A2A protocol.
 |-----------|-------------|
 | [Server](server.md) | Discovery server with mDNS + well-known endpoint |
 | [Client](client.md) | Discovery client library |
-| [Simulation](simulation.md) | Docker-based network testing |
+| [Simulation](simulation.md) | Network simulation and testing guide |
+
+## Features
+
+- **TLS Support** - HTTPS endpoints with certificate verification
+- **AgentCard Signing** - JWS-based cryptographic signing
+- **Identity Verification** - TLS, domain, and signature verification
+- **Structured Logging** - Configurable logging levels
 
 ## Quick Start
 
@@ -41,7 +48,7 @@ python -m client.lad_client
 ```
 
 !!! warning "TLS Required in Production"
-    Examples use HTTP for local development. In production, **all endpoints MUST use TLS 1.2+**.
+    Examples use HTTP for local development. In production, **all endpoints MUST use TLS 1.2+**. See [PRODUCTION-CHECKLIST.md](../../PRODUCTION-CHECKLIST.md) for deployment guidance.
 
 ### Run Tests
 
@@ -49,7 +56,7 @@ python -m client.lad_client
 pytest tests/ -v
 ```
 
-All 12 conformance tests validate spec compliance.
+68 tests validate spec compliance and security features.
 
 ## Endpoints
 
@@ -67,9 +74,41 @@ reference/
 │   └── lad_server.py      # Discovery server
 ├── client/
 │   └── lad_client.py      # Discovery client
+├── common/
+│   ├── __init__.py
+│   ├── signing.py         # AgentCard signing utilities
+│   └── config.py          # Configuration file support
 ├── tests/
-│   └── test_lad.py        # Conformance tests
-├── simulation/
-│   └── docker-compose.yml # Network simulation
+│   ├── test_lad.py        # Conformance tests
+│   ├── test_security.py   # Security feature tests
+│   └── test_config.py     # Configuration tests
 └── pyproject.toml
+```
+
+## Security Features
+
+### TLS Configuration
+
+```bash
+# Server with TLS
+python -m server.lad_server \
+  --ssl-certfile /path/to/cert.pem \
+  --ssl-keyfile /path/to/key.pem
+
+# Client with TLS verification
+python -m client.lad_client \
+  --url https://secure-agent.example.com
+```
+
+### AgentCard Signing
+
+```bash
+# Generate signing keys
+python -c "from common.signing import generate_signing_keys; generate_signing_keys('keys/')"
+
+# Server with signing
+python -m server.lad_server --signing-key keys/private.pem
+
+# Client with signature verification
+python -m client.lad_client --signing-public-key keys/public.pem --require-verified
 ```

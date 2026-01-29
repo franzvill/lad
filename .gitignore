@@ -29,3 +29,5 @@ htmlcov/
 # Environment
 .env
 .env.local
+
+marketing/
