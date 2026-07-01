@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache License"></a>
+  <a href="https://github.com/franzvill/lad/actions/workflows/tests.yml"><img src="https://github.com/franzvill/lad/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="spec/spec.md"><img src="https://img.shields.io/badge/spec-draft-orange.svg" alt="Spec Version"></a>
   <a href="https://lad-a2a.org"><img src="https://img.shields.io/badge/docs-lad--a2a.org-blue.svg" alt="Documentation"></a>
 </p>
