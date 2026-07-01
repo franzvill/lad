@@ -4,41 +4,42 @@ LAD-A2A defines how AI agents discover each other on local networks.
 
 ## Current Version
 
-**v0.1.0-draft** (January 2025)
+**v0.2.0-draft** (July 2026) — a breaking security revision. See the [changelog](spec.md#appendix-b-changelog).
 
 ## Core Concepts
 
 ### Discovery Mechanisms
 
-LAD-A2A supports multiple discovery paths with automatic fallback:
+Clients query **every** available mechanism and aggregate + dedup the results (they do not stop at the first that answers — an unauthenticated mDNS record must never suppress the authenticated list):
 
-| Priority | Mechanism | Use Case |
-|----------|-----------|----------|
-| 1 | **mDNS/DNS-SD** | Zero-config LAN discovery via `_a2a._tcp` |
-| 2 | **Well-Known Endpoint** | HTTP-based via `/.well-known/lad/agents` |
-| 3 | **DHCP Option** | Enterprise networks |
-| 4 | **QR/NFC** | Human-assisted fallback |
+| Mechanism | Use Case |
+|-----------|----------|
+| **mDNS/DNS-SD** | Zero-config LAN discovery via the LAD-owned `_lad-a2a._tcp` |
+| **Well-Known Endpoint** | HTTPS via `/.well-known/lad/agents` |
+| **Captive portal / DHCP** | *Non-normative* (future work); a network-supplied URL confers no trust |
+| **QR/NFC** | Human-assisted; must carry a trust anchor, not just a URL |
 
 ### Security Model
 
-Local networks are **hostile by default**. LAD-A2A mandates:
+Local networks are **hostile by default**, and the model rests on separating two axes — see the [Trust Model](../trust-model.md):
 
 | Requirement | Description |
 |-------------|-------------|
-| TLS Required | All endpoints must use HTTPS |
-| Signed AgentCards | JWS or DID-based verification |
-| User Consent | Explicit approval before connection |
-| Capability Scopes | Least-privilege enforcement |
+| Channel ≠ identity | Verified TLS authenticates the *channel*; it never, alone, makes an agent "verified" |
+| Identity verification | Domain / JWS / DID, each **anchored to the org domain**; a failed stronger method is fatal |
+| Fresh signed cards | Signed AgentCards carry a short `exp`; expired/replayed cards are rejected |
+| Explicit consent | Human approval before first contact, keyed to the verified identity; never auto-approved |
+| Resource & privacy limits | Bounded discovery responses; data minimization before consent |
 
 ### Discovery Flow
 
 ```
 1. Device joins network
-2. Client queries mDNS (_a2a._tcp) or well-known endpoint
-3. Discovery response includes AgentCard URL
-4. Client fetches and verifies AgentCard
-5. User approves connection
-6. Standard A2A session begins
+2. Client queries ALL mechanisms (mDNS _lad-a2a._tcp + well-known) and dedups
+3. Client fetches each AgentCard over verified TLS (not "first contact")
+4. Client verifies IDENTITY (domain/JWS/DID); a failed method is fatal
+5. User gives explicit consent (channel and identity shown separately)
+6. First contact: standard A2A session begins
 ```
 
 ## Documents

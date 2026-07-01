@@ -93,7 +93,7 @@ class TestDiscoveryEndpoint:
         data = response.json()
 
         # Version is required
-        assert data["version"] == "1.0"
+        assert data["version"] == "0.2"
 
         # Agents array is required
         assert isinstance(data["agents"], list)
@@ -179,8 +179,10 @@ class TestAgentCardEndpoint:
         assert "url" in data
         assert "capabilities" in data
         assert "skills" in data
-        assert "protocolVersions" in data  # Required by A2A spec
-        assert "1.0" in data["protocolVersions"]
+        # A2A AgentCard requires a singular protocolVersion string (not an array)
+        assert "protocolVersion" in data
+        assert isinstance(data["protocolVersion"], str)
+        assert "protocolVersions" not in data
 
     @pytest.mark.asyncio
     async def test_agent_card_url_is_valid_endpoint(self, app):

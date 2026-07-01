@@ -40,6 +40,9 @@ class SigningConfig:
     private_key_path: Optional[str] = None
     key_id: Optional[str] = None  # "kid" header for key identification
     algorithm: str = "ES256"  # ECDSA with P-256 and SHA-256
+    # Signed cards are short-lived so a captured card cannot be replayed
+    # indefinitely on a hostile network (spec section 4.2). Default 24h.
+    ttl_seconds: int = 86400
 
     def validate(self) -> bool:
         """Validate signing configuration."""
@@ -155,10 +158,13 @@ def sign_agent_card(
 
     private_key_pem = load_private_key(config.private_key_path)
 
-    # Build payload with AgentCard and metadata
+    # Build payload with AgentCard and metadata. `exp` bounds the card's validity
+    # so a card captured off a hostile network cannot be replayed forever.
+    issued_at = int(datetime.now(timezone.utc).timestamp())
     payload = {
         "agent_card": agent_card,
-        "iat": int(datetime.now(timezone.utc).timestamp()),
+        "iat": issued_at,
+        "exp": issued_at + max(1, int(config.ttl_seconds)),
     }
 
     # Build headers
@@ -208,11 +214,13 @@ def verify_agent_card(
         )
 
     try:
-        # Decode and verify
+        # Decode and verify. Require freshness claims and reject expired cards so
+        # a replayed capture is not accepted (spec section 4.2).
         payload = jwt.decode(
             token,
             public_key_pem,
             algorithms=algorithms,
+            options={"require": ["iat", "exp"], "verify_exp": True},
         )
 
         # Extract metadata

@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lad-a2a.org/schemas/mdns-txt-record.json",
   "title": "LAD-A2A mDNS TXT Record",
-  "description": "Schema for mDNS TXT record key-value pairs",
+  "description": "Schema for mDNS TXT record key-value pairs advertised on _lad-a2a._tcp. The key set is closed; clients ignore unknown keys and derive no trust from TXT values.",
   "type": "object",
-  "required": ["path", "v"],
+  "additionalProperties": false,
+  "required": ["path", "v", "id"],
   "properties": {
     "path": {
       "type": "string",
@@ -14,19 +15,19 @@
     },
     "v": {
       "type": "string",
-      "description": "LAD-A2A version number",
+      "description": "LAD-A2A MAJOR version (integer); must equal the discovery version's MAJOR",
       "pattern": "^\\d+$",
-      "examples": ["1"]
-    },
-    "org": {
-      "type": "string",
-      "description": "Organization name (optional)",
-      "examples": ["ExampleHotel"]
+      "examples": ["0"]
     },
     "id": {
       "type": "string",
-      "description": "Agent DID or identifier (optional)",
+      "description": "Stable identity key (DID). Used for dedup and consent pinning; not itself a trust anchor.",
       "examples": ["did:web:examplehotel.com#concierge"]
+    },
+    "org": {
+      "type": "string",
+      "description": "Display-only organization label. NOT an identity claim (unauthenticated).",
+      "examples": ["ExampleHotel"]
     }
   }
 }

@@ -37,10 +37,10 @@ AI agents are increasingly capable, but they remain isolated from their physical
 
 LAD-A2A solves this by providing:
 
-- **Zero-Configuration Discovery:** Agents find each other automatically via mDNS/DNS-SD, well-known endpoints, or DHCP options.
-- **Defense in Depth:** Local networks are hostile by default. LAD-A2A requires TLS, signed AgentCards, verifiable identities (DIDs), and explicit user consent.
-- **Graceful Degradation:** Multiple discovery mechanisms ensure compatibility from consumer Wi-Fi to enterprise networks.
-- **Ecosystem Alignment:** LAD-A2A only handles discovery—once an agent is found, standard A2A communication takes over.
+- **Zero-Configuration Discovery:** Agents find each other automatically via mDNS/DNS-SD (`_lad-a2a._tcp`) and well-known endpoints.
+- **An honest trust model:** Local networks are hostile by default. LAD-A2A carefully separates *channel authentication* (TLS proves you reached the host in the URL) from *identity verification* (domain/JWS/DID anchored to the org). TLS to an attacker-chosen host proves nothing about identity — see the **[Trust Model](https://lad-a2a.org/trust-model/)**.
+- **Explicit user consent:** Human approval before first contact, keyed to a verified identity — never auto-approved.
+- **Ecosystem Alignment:** LAD-A2A only handles discovery—once an agent is verified and approved, standard A2A communication takes over.
 
 ## How It Fits
 
@@ -62,7 +62,7 @@ LAD-A2A supports multiple discovery paths with automatic fallback:
 
 | Mechanism | Environment | Description |
 |-----------|-------------|-------------|
-| **mDNS/DNS-SD** | LAN, Consumer Wi-Fi | Zero-config discovery via `_a2a._tcp` service type |
+| **mDNS/DNS-SD** | LAN, Consumer Wi-Fi | Zero-config discovery via the LAD-owned `_lad-a2a._tcp` service type |
 | **Well-Known Endpoint** | Captive Portals, Web | `/.well-known/lad/agents` on the network domain |
 | **DHCP Option** | Enterprise Networks | Custom option containing discovery URL |
 | **QR/NFC** | Physical Fallback | Direct link to AgentCard for restricted networks |
@@ -97,36 +97,41 @@ pip install -e .
 # Start a discovery server (development only)
 python -m server.lad_server --name "My Agent" --port 8080
 
-# Discover agents (in another terminal)
-python -m client.lad_client --url http://localhost:8080
+# Discover agents (in another terminal). --no-verify-tls opts into plaintext for
+# local dev; without it the client refuses non-https URLs as a discovery failure.
+python -m client.lad_client --url http://localhost:8080 --no-verify-tls
 ```
 
-> **Note:** The example above uses HTTP for local development. In production, **TLS is required** per the [security spec](spec/spec.md#4-security-requirements). All HTTP endpoints MUST use TLS 1.2+.
+> **Note:** The example above uses HTTP for local development. In production, **TLS is required** per the [security spec](spec/spec.md#4-security-requirements): all endpoints MUST use TLS 1.2+, and a non-https URL is a *discovery failure*, not merely an unverified agent.
 
 ## Example: Hotel Concierge
 
 ```
 1. Guest device joins "ExampleHotel-Guest" Wi-Fi
-2. Client queries mDNS for _a2a._tcp.local
-   └─ Fallback: GET https://portal.examplehotel.com/.well-known/lad/agents
-3. Discovery response includes AgentCard URL
-4. Client fetches and verifies AgentCard (signed, DID-bound)
-5. Client prompts user: "Hotel Concierge agent found. Connect?"
-6. User approves → Standard A2A session begins
+2. Client queries mDNS for _lad-a2a._tcp.local AND the well-known endpoint,
+   then aggregates + dedups by identity key
+3. Discovery response includes an AgentCard URL (https) and a DID identity key
+4. Client fetches the card over verified TLS and verifies IDENTITY
+   (JWS/DID anchored to the org domain); a failed method is fatal
+5. Client prompts the user, showing channel and identity separately:
+   "Domain-authenticated: concierge.examplehotel.com — Connect?"
+6. User approves → Standard A2A session begins (this is first contact)
 7. User asks: "What time is breakfast?" → Agent responds via A2A
 ```
 
 ## Security Model
 
-Local networks are **hostile by default**. LAD-A2A mandates:
+Local networks are **hostile by default** — a valid TLS certificate for an attacker-owned look-alike domain is part of the threat model, not a defense against it. LAD-A2A mandates:
 
 | Requirement | Description |
 |-------------|-------------|
-| **TLS Required** | All AgentCard fetches and A2A sessions must use HTTPS |
-| **Signed AgentCards** | JWS signatures or DID-based identity verification |
-| **User Consent** | Explicit approval before first connection to any discovered agent |
-| **Capability Scopes** | Agents declare capabilities; clients enforce least privilege |
-| **Authentication** | OAuth2/OIDC for privileged operations |
+| **Channel ≠ identity** | Verified TLS authenticates the *channel*; it never, on its own, marks an agent "verified" |
+| **Anchored identity** | Domain / JWS / DID, each bound to the org domain; a failed stronger method is fatal (no weaker fallback) |
+| **Fresh signed cards** | JWS AgentCards carry a short `exp`; expired/replayed cards are rejected |
+| **Explicit consent** | Human approval before first contact, keyed to the verified identity — never auto-approved |
+| **Limits & privacy** | Bounded discovery responses; no wildcard CORS; data minimization before consent |
+
+See the **[Trust Model](https://lad-a2a.org/trust-model/)** for why the channel/identity split is the crux.
 
 ## Documentation
 

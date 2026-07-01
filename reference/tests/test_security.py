@@ -692,25 +692,30 @@ class TestUserConsent:
         assert ConsentDecision.DEFERRED.value == "deferred"
 
     @pytest.mark.asyncio
-    async def test_default_consent_approves_verified(self):
-        """Default consent callback approves verified agents."""
+    async def test_default_consent_denies_even_verified(self):
+        """Default consent callback denies EVERYTHING, including verified agents.
+
+        "Verified" is an identity signal, not a user decision. The safe default
+        is to deny and require an explicit consent UI (spec section 4.3).
+        """
         agent = DiscoveredAgent(
             name="Verified Agent",
             description="Test",
             role="test",
-            agent_card_url="http://test/.well-known/agent.json",
+            agent_card_url="https://test.example.com/.well-known/agent.json",
             verified=True,
+            verification_method="domain",
         )
 
         request = ConsentRequest(
             agent=agent,
             verified=True,
-            verification_method="tls",
+            verification_method="domain",
             capabilities=[],
         )
 
         response = await default_consent_callback(request)
-        assert response.decision == ConsentDecision.APPROVED
+        assert response.decision == ConsentDecision.DENIED
 
     @pytest.mark.asyncio
     async def test_default_consent_denies_unverified(self):

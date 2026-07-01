@@ -352,4 +352,4 @@ async def enterprise_discovery():
 
 - See [Server Reference](server.md) for server configuration
 - See [Client Reference](client.md) for client options
-- See [PRODUCTION-CHECKLIST.md](../../PRODUCTION-CHECKLIST.md) for production deployment
+- See the [Trust Model](../trust-model.md) and [Security Requirements](../spec/spec.md#4-security-requirements) for production deployment
