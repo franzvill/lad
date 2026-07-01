@@ -371,6 +371,81 @@ class TestDomainVerification:
         # Provider organization is set from network_realm
         assert card["provider"]["organization"] == "test.example.com"
 
+    # Hostname/organization matching (spec section 4.2)
+
+    def test_host_matches_org_exact_and_subdomain(self):
+        """Exact host and subdomains of the org domain match."""
+        assert LADClient._host_matches_org("example.com", "example.com") is True
+        assert LADClient._host_matches_org("ai.grandhotel.com", "grandhotel.com") is True
+        assert LADClient._host_matches_org("Example.COM", "example.com") is True
+
+    def test_host_matches_org_rejects_lookalikes(self):
+        """Substring look-alikes must NOT match (no substring matching)."""
+        # Previously matched via `org in domain`
+        assert LADClient._host_matches_org("nothotel.evil.com", "hotel") is False
+        # Previously matched via `domain.endswith(org)`
+        assert LADClient._host_matches_org("notexample.com", "example.com") is False
+        assert LADClient._host_matches_org("evil.com", "com") is False
+
+    def test_host_matches_org_rejects_freetext_org(self):
+        """Free-text organization labels are not verifiable domains."""
+        assert LADClient._host_matches_org("ai.grandhotel.com", "Grand Hotel") is False
+        assert LADClient._host_matches_org("concierge", "ExampleHotel") is False
+
+    @pytest.mark.asyncio
+    async def test_domain_match_does_not_verify_over_plain_http(self):
+        """A domain match over an unauthenticated (HTTP) channel must NOT verify.
+
+        Local networks are hostile by default (spec section 1.4): without
+        verified TLS, a self-asserted organization proves nothing.
+        """
+        client = LADClient(verify_tls=True)
+        agent = DiscoveredAgent(
+            name="Rogue",
+            description="",
+            role="test",
+            agent_card_url="http://grandhotel.com/.well-known/agent.json",
+        )
+        agent.agent_card = {"provider": {"organization": "grandhotel.com"}}
+
+        await client._verify_domain(agent)
+
+        assert agent.verified is False
+        assert agent.verification_method != "domain"
+
+    @pytest.mark.asyncio
+    async def test_domain_match_verifies_over_https(self):
+        """A domain match over verified TLS elevates the agent to verified."""
+        client = LADClient(verify_tls=True)
+        agent = DiscoveredAgent(
+            name="Concierge",
+            description="",
+            role="test",
+            agent_card_url="https://ai.grandhotel.com/.well-known/agent.json",
+        )
+        agent.agent_card = {"provider": {"organization": "grandhotel.com"}}
+
+        await client._verify_domain(agent)
+
+        assert agent.verified is True
+        assert agent.verification_method == "domain"
+
+    @pytest.mark.asyncio
+    async def test_domain_mismatch_does_not_verify(self):
+        """A host that is not part of the claimed org domain stays unverified."""
+        client = LADClient(verify_tls=True)
+        agent = DiscoveredAgent(
+            name="Impostor",
+            description="",
+            role="test",
+            agent_card_url="https://evil.com/.well-known/agent.json",
+        )
+        agent.agent_card = {"provider": {"organization": "grandhotel.com"}}
+
+        await client._verify_domain(agent)
+
+        assert agent.verified is False
+
 
 # Malformed Input Tests
 

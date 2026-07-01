@@ -463,37 +463,67 @@ class LADClient:
             except Exception:
                 pass
 
-    async def _verify_domain(self, agent: DiscoveredAgent) -> None:
-        """Verify that the AgentCard domain matches claimed organization.
+    @staticmethod
+    def _host_matches_org(host: str, organization: str) -> bool:
+        """Check whether a hostname belongs to a claimed organization domain.
 
-        This implements basic domain verification per spec section 4.2.
+        Uses registrable-suffix matching, not substring matching: the host must
+        equal the organization domain or be a subdomain of it. This rejects
+        look-alikes such as ``nothotel.evil.com`` for org ``hotel`` or
+        ``notexample.com`` for org ``example.com``.
+
+        Only domain-shaped organizations (containing a dot, no spaces) can be
+        matched against a hostname; a free-text organization label such as
+        "Grand Hotel" is not a verifiable domain and never matches.
+        """
+        org = organization.strip().lower().rstrip(".")
+        host = host.strip().lower().rstrip(".")
+        if not org or not host:
+            return False
+        if "." not in org or " " in org:
+            return False
+        return host == org or host.endswith("." + org)
+
+    async def _verify_domain(self, agent: DiscoveredAgent) -> None:
+        """Verify the AgentCard's claimed organization matches the host serving it.
+
+        Implements domain verification per spec section 4.2. Domain verification
+        is only meaningful over an authenticated TLS channel: without verified
+        TLS, a hostile network can serve any card from any host, so a
+        self-asserted ``provider.organization`` proves nothing. We therefore
+        only elevate an agent to ``verified`` on a domain match when the card was
+        fetched over verified TLS. On an unauthenticated channel a match is
+        logged as informational and the agent stays unverified.
         """
         if not agent.agent_card:
             return
 
         card_url = urlparse(agent.agent_card_url)
-        card_domain = card_url.netloc.split(":")[0]  # Remove port if present
+        card_host = (card_url.hostname or "").lower()  # hostname strips any port
 
-        # Check if provider organization matches the domain
-        provider = agent.agent_card.get("provider", {})
-        organization = provider.get("organization", "")
+        provider = agent.agent_card.get("provider", {}) or {}
+        organization = (provider.get("organization") or "")
+        if not organization or not card_host:
+            return
 
-        # Simple domain matching: organization should be part of the domain
-        # e.g., "grandhotel.com" matches "ai.grandhotel.com"
-        if organization and card_domain:
-            org_normalized = organization.lower().replace(" ", "")
-            domain_normalized = card_domain.lower()
+        if not self._host_matches_org(card_host, organization):
+            logger.warning(
+                f"Domain mismatch for {agent.name}: "
+                f"organization='{organization}', host='{card_host}'"
+            )
+            return
 
-            if org_normalized in domain_normalized or domain_normalized.endswith(org_normalized):
-                if agent.verification_method != "tls":
-                    agent.verification_method = "domain"
-                    agent.verified = True
-                logger.debug(f"Domain verification passed for {agent.name}: {organization}")
-            else:
-                logger.warning(
-                    f"Domain mismatch for {agent.name}: "
-                    f"organization='{organization}', domain='{card_domain}'"
-                )
+        over_verified_tls = card_url.scheme == "https" and self.verify_tls
+        if over_verified_tls:
+            if agent.verification_method != "tls":
+                agent.verification_method = "domain"
+                agent.verified = True
+            logger.debug(f"Domain verification passed for {agent.name}: {organization}")
+        else:
+            logger.info(
+                f"Domain of {agent.name} matches '{organization}' but the connection "
+                "is not authenticated (no verified TLS); not marking as verified."
+            )
 
     async def discover(
         self,

@@ -177,7 +177,7 @@ AgentCards MUST be verifiable through one of:
 
 1. **JWS Signature:** AgentCard wrapped in a signed JWS envelope
 2. **DID Binding:** AgentCard references a DID that resolves to verification keys
-3. **Domain Verification:** AgentCard served from a domain matching the claimed organization (similar to did:web)
+3. **Domain Verification:** AgentCard served over verified TLS from a host matching the claimed organization domain (similar to did:web). The host MUST equal the organization domain or be a subdomain of it (e.g. `ai.grandhotel.com` for `grandhotel.com`); substring matches (e.g. `nothotel.evil.com` for `hotel`) MUST NOT be accepted. Because the domain binding is provided by TLS, a domain match over a non-TLS or unverified connection carries no trust and MUST NOT mark an agent as verified.
 
 ### 4.3 User Consent
 
