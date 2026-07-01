@@ -13,8 +13,8 @@ Security Notes:
 """
 
 import asyncio
+import ipaddress
 import logging
-import ssl
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Optional, Protocol, Union
@@ -47,21 +47,58 @@ def configure_logging(level: str = "INFO") -> None:
 
 @dataclass
 class DiscoveredAgent:
-    """An agent discovered via LAD-A2A."""
+    """An agent discovered via LAD-A2A.
+
+    Trust is tracked on two ORTHOGONAL axes (spec section 4.2):
+
+    - ``channel_encrypted`` — was the AgentCard fetched over verified TLS?
+      This is a property of the *transport*. It proves the bytes were not
+      tampered in flight and that we reached the host named in the URL. It
+      proves NOTHING about the agent's identity: on a hostile network the URL
+      itself is attacker-supplied, so a valid cert for ``rogue-portal.com``
+      still yields an encrypted channel to the rogue.
+    - ``verified`` — has the agent's *identity* been cryptographically bound to
+      its claimed organization (via JWS/DID anchored to the domain, or a
+      domain match over verified TLS)? Only this axis is a trust signal.
+
+    A common historical bug is to conflate the two and treat "arrived over
+    HTTPS" as "identity verified". They are kept separate here deliberately.
+    """
     name: str
     description: str
     role: str
     agent_card_url: str
     capabilities_preview: list[str] = field(default_factory=list)
     source: str = "unknown"  # "mdns" or "wellknown"
+    id: Optional[str] = None  # stable identity key (e.g. a DID), if advertised
 
-    # Populated after fetching AgentCard
+    # Populated after fetching AgentCard (only once identity checks have run)
     agent_card: Optional[dict] = None
+    # Payload of a card that FAILED verification — kept for diagnostics only,
+    # never treated as trusted and never surfaced to a consent UI.
+    unverified_card: Optional[dict] = None
 
-    # Security verification status
+    # Transport property (NOT an identity signal)
+    channel_encrypted: bool = False
+
+    # Identity verification status
     verified: bool = False
-    verification_method: Optional[str] = None  # "tls", "domain", "jws", "did"
+    verification_method: Optional[str] = None  # "domain", "jws", "did"
     verification_error: Optional[str] = None
+
+    def identity_key(self) -> str:
+        """Return a stable key for dedup and for pinning remembered consent.
+
+        Prefers an advertised identity (``id``/DID), then a verified-identity
+        host, and only falls back to the (spoofable) card URL when nothing
+        stronger exists. Consent SHOULD be persisted only against a verified
+        key — see spec section 4.3.
+        """
+        if self.id:
+            return self.id.lower()
+        if self.verified and self.agent_card_url:
+            return urlparse(self.agent_card_url).hostname or self.agent_card_url
+        return self.agent_card_url
 
 
 @dataclass
@@ -88,13 +125,20 @@ class ConsentDecision(Enum):
 class ConsentRequest:
     """Information presented to user for consent decision.
 
-    Per spec section 4.3, clients MUST obtain explicit user consent
-    before initiating first contact with a discovered agent.
+    Per spec section 4.3, clients MUST obtain explicit user consent before
+    initiating first contact with a discovered agent. The UI MUST present the
+    two trust axes separately: ``channel_encrypted`` (transport) and
+    ``verified`` (identity). A green "verified" must never be shown for an agent
+    whose identity was not cryptographically bound to its domain.
     """
     agent: DiscoveredAgent
     verified: bool
     verification_method: Optional[str]
     capabilities: list[str]
+    channel_encrypted: bool = False
+    # "agent_card" when capabilities come from the verified card, else "preview"
+    # (the preview is served by the network side and is NOT trustworthy).
+    capabilities_source: str = "preview"
 
     def to_display_dict(self) -> dict[str, Any]:
         """Convert to a dictionary suitable for UI display."""
@@ -102,9 +146,11 @@ class ConsentRequest:
             "agent_name": self.agent.name,
             "agent_description": self.agent.description,
             "agent_role": self.agent.role,
+            "channel_encrypted": self.channel_encrypted,
             "verified": self.verified,
             "verification_method": self.verification_method or "none",
             "capabilities": self.capabilities,
+            "capabilities_source": self.capabilities_source,
             "source": self.agent.source,
         }
 
@@ -127,19 +173,21 @@ ConsentCallback = Callable[
 
 
 async def default_consent_callback(request: ConsentRequest) -> ConsentResponse:
-    """Default consent callback that approves all verified agents.
+    """Default consent callback: DENY everything.
 
-    Production applications should implement their own consent UI.
+    Spec section 4.3 requires *explicit user consent* before first contact.
+    "Verified" only means an identity was cryptographically bound to a domain —
+    it does NOT establish that this is the agent the user intends to use (e.g.
+    that this really is the hotel they are standing in). That judgement is the
+    user's, so the safe default is to deny and force applications to supply a
+    real consent UI. Auto-approving verified agents would silently satisfy a
+    MUST that no human ever exercised.
     """
-    if request.verified:
-        logger.debug(f"Auto-approving verified agent: {request.agent.name}")
-        return ConsentResponse(decision=ConsentDecision.APPROVED)
-    else:
-        logger.warning(
-            f"Auto-denying unverified agent: {request.agent.name}. "
-            "Implement a consent callback to allow manual approval."
-        )
-        return ConsentResponse(decision=ConsentDecision.DENIED)
+    logger.warning(
+        f"No consent callback provided; denying '{request.agent.name}' by default. "
+        "Implement a ConsentCallback with a real user-facing prompt to approve agents."
+    )
+    return ConsentResponse(decision=ConsentDecision.DENIED)
 
 
 class MDNSListener(ServiceListener):
@@ -209,14 +257,19 @@ class MDNSListener(ServiceListener):
                 agent_card_url = f"{scheme}://{host}:{port}{path}"
 
                 # Extract agent name from service name
-                agent_name = name.replace("._a2a._tcp.local.", "")
+                agent_name = name.replace("._lad-a2a._tcp.local.", "")
 
+                # `role` is deliberately NOT read from TXT: it is not a defined
+                # TXT key (spec section 2.1) and anything from an unauthenticated
+                # multicast record is untrusted. Role/category comes only from the
+                # fetched + verified AgentCard.
                 agent = DiscoveredAgent(
                     name=agent_name,
                     description=f"Discovered via mDNS from {properties.get('org', 'unknown')}",
-                    role=properties.get("role", "unknown"),
+                    role="unknown",
                     agent_card_url=agent_card_url,
                     source="mdns",
+                    id=properties.get("id"),
                 )
                 self.agents.append(agent)
                 self._agents_by_name[name] = agent
@@ -298,7 +351,7 @@ class LADClient:
         listener = MDNSListener(use_https=use_https)
 
         try:
-            browser = ServiceBrowser(zeroconf, "_a2a._tcp.local.", listener)
+            browser = ServiceBrowser(zeroconf, "_lad-a2a._tcp.local.", listener)
 
             # Wait for discoveries or timeout
             await asyncio.sleep(self.mdns_timeout)
@@ -327,8 +380,12 @@ class LADClient:
                 response.raise_for_status()
                 data = response.json()
 
-                # Check if TLS was used (for verification status)
-                used_tls = discovery_url.startswith("https://")
+                # The discovery document was fetched over TLS, but that only
+                # authenticates the *discovery channel* — it says nothing about
+                # the identity of the agents listed inside it. Identity is
+                # established later, per-agent, in fetch_agent_card(). Do NOT set
+                # `verified` here (spec section 4.2).
+                encrypted = discovery_url.startswith("https://") and self.verify_tls
 
                 for agent_data in data.get("agents", []):
                     agent = DiscoveredAgent(
@@ -338,8 +395,8 @@ class LADClient:
                         agent_card_url=agent_data["agent_card_url"],
                         capabilities_preview=agent_data.get("capabilities_preview", []),
                         source="wellknown",
-                        verified=used_tls and self.verify_tls,
-                        verification_method="tls" if (used_tls and self.verify_tls) else None,
+                        id=agent_data.get("id"),
+                        channel_encrypted=encrypted,
                     )
                     agents.append(agent)
                     logger.debug(f"Discovered agent: {agent.name}")
@@ -378,6 +435,18 @@ class LADClient:
         """
         logger.debug(f"Fetching AgentCard from {agent.agent_card_url}")
 
+        # Enforce TLS on the card fetch (spec section 4.1). On a hostile network
+        # a plaintext fetch both leaks the agent's skills/auth endpoints and can
+        # be tampered in flight, so a non-https card URL is a discovery failure.
+        # verify_tls=False explicitly opts into plaintext for local development.
+        if self.verify_tls and not agent.agent_card_url.lower().startswith("https://"):
+            agent.verification_error = "AgentCard URL is not https (refused under TLS policy)"
+            logger.error(
+                f"Refusing to fetch AgentCard for {agent.name} over plaintext: "
+                f"{agent.agent_card_url}"
+            )
+            raise ValueError(agent.verification_error)
+
         async with self._get_http_client() as client:
             try:
                 # Build headers - request signed format if we can verify it
@@ -388,27 +457,32 @@ class LADClient:
                 response = await client.get(agent.agent_card_url, headers=headers)
                 response.raise_for_status()
 
+                # Record transport encryption. This is orthogonal to identity:
+                # it never sets `verified` on its own (spec section 4.2).
+                if agent.agent_card_url.lower().startswith("https://") and self.verify_tls:
+                    agent.channel_encrypted = True
+
                 # Check if we got a signed response
                 content_type = response.headers.get("content-type", "")
                 if "application/jose" in content_type:
-                    # Signed AgentCard - verify signature
+                    # Signed AgentCard - verify the signature (sets verified via jws)
                     await self._verify_signed_agent_card(agent, response.text)
                 else:
-                    # Unsigned JSON AgentCard
+                    # Unsigned JSON AgentCard. Arriving over TLS encrypts the
+                    # channel but does NOT verify identity — that is decided by
+                    # the domain/JWS/DID checks, not the transport.
                     agent.agent_card = response.json()
 
-                    # Update verification status based on TLS
-                    used_tls = agent.agent_card_url.startswith("https://")
-                    if used_tls and self.verify_tls:
-                        agent.verified = True
-                        agent.verification_method = "tls"
-                        logger.debug(f"AgentCard verified via TLS: {agent.name}")
-
-                # Optional domain verification
-                if verify_domain and agent.agent_card:
+                # Domain verification — only when we have a card to inspect AND no
+                # stronger method has already failed. A failed JWS MUST NOT be
+                # rescued by falling back to weaker domain matching (spec 4.2).
+                if verify_domain and agent.agent_card and not agent.verification_error:
                     await self._verify_domain(agent)
 
-                logger.info(f"Fetched AgentCard for {agent.name} (verified={agent.verified})")
+                logger.info(
+                    f"Fetched AgentCard for {agent.name} "
+                    f"(verified={agent.verified}, encrypted={agent.channel_encrypted})"
+                )
                 return agent.agent_card
 
             except httpx.HTTPStatusError as e:
@@ -453,13 +527,16 @@ class LADClient:
             )
         else:
             agent.verification_error = f"Signature verification failed: {result.error}"
+            agent.verified = False
             logger.warning(f"AgentCard signature invalid for {agent.name}: {result.error}")
-            # Still try to decode the payload for the card
+            # A card that presented itself as signed but failed verification MUST
+            # be treated as unverified: do NOT place its payload in agent_card
+            # (which a consent UI would render as trusted) and do NOT let the
+            # weaker domain path rescue it. Keep the payload only for diagnostics.
             try:
                 import jwt
-                # Decode without verification to get the card
                 payload = jwt.decode(token, options={"verify_signature": False})
-                agent.agent_card = payload.get("agent_card")
+                agent.unverified_card = payload.get("agent_card")
             except Exception:
                 pass
 
@@ -498,8 +575,22 @@ class LADClient:
         if not agent.agent_card:
             return
 
+        # Never let domain matching rescue a card that already failed a stronger
+        # method (e.g. an invalid JWS signature).
+        if agent.verification_error:
+            return
+
         card_url = urlparse(agent.agent_card_url)
         card_host = (card_url.hostname or "").lower()  # hostname strips any port
+
+        # A bare IP literal is not an organizational identity: refuse to treat
+        # an IP-host match as domain verification.
+        try:
+            ipaddress.ip_address(card_host)
+            logger.debug(f"Skipping domain verification for IP host: {card_host}")
+            return
+        except ValueError:
+            pass
 
         provider = agent.agent_card.get("provider", {}) or {}
         organization = (provider.get("organization") or "")
@@ -524,6 +615,30 @@ class LADClient:
                 f"Domain of {agent.name} matches '{organization}' but the connection "
                 "is not authenticated (no verified TLS); not marking as verified."
             )
+
+    @staticmethod
+    def _dedup_agents(agents: list[DiscoveredAgent]) -> list[DiscoveredAgent]:
+        """Collapse agents that share a stable identity key.
+
+        When the same agent is discovered via more than one mechanism, keep the
+        record that carries the most trust: a verified record always wins over an
+        unverified one; among equals, an encrypted-channel record wins.
+        """
+        best: dict[str, DiscoveredAgent] = {}
+        order: list[str] = []
+        for agent in agents:
+            key = agent.identity_key()
+            current = best.get(key)
+            if current is None:
+                best[key] = agent
+                order.append(key)
+                continue
+            # Prefer verified, then encrypted channel.
+            incumbent_rank = (current.verified, current.channel_encrypted)
+            candidate_rank = (agent.verified, agent.channel_encrypted)
+            if candidate_rank > incumbent_rank:
+                best[key] = agent
+        return [best[k] for k in order]
 
     async def discover(
         self,
@@ -568,13 +683,18 @@ class LADClient:
                 result.errors.append(error_msg)
                 logger.warning(error_msg)
 
-        # Step 2: Fall back to well-known if no mDNS results
-        if not result.agents and fallback_url:
+        # Step 2: ALWAYS query the well-known endpoint when we have a URL, even if
+        # mDNS already returned agents. mDNS is unauthenticated multicast: letting
+        # a single spoofed mDNS answer suppress the authenticated TLS list would be
+        # a denial-of-discovery (spec section 2). We aggregate and dedup instead.
+        if fallback_url:
             try:
                 wellknown_agents = await self.discover_wellknown(fallback_url)
                 if wellknown_agents:
                     result.agents.extend(wellknown_agents)
-                    result.discovery_method = "wellknown"
+                    result.discovery_method = (
+                        "mdns+wellknown" if result.discovery_method == "mdns" else "wellknown"
+                    )
                     logger.info(f"Well-known discovery found {len(wellknown_agents)} agent(s)")
             except Exception as e:
                 error_msg = f"Well-known discovery failed: {e}"
@@ -591,6 +711,15 @@ class LADClient:
                     error_msg = f"Failed to fetch AgentCard for {agent.name}: {e}"
                     result.errors.append(error_msg)
                     logger.warning(error_msg)
+
+        # Step 3b: Dedup the same agent seen via multiple mechanisms, keyed on a
+        # stable identity. Prefer the verified record so an unauthenticated mDNS
+        # entry never masks its verified well-known twin (spec section 2).
+        if len(result.agents) > 1:
+            before = len(result.agents)
+            result.agents = self._dedup_agents(result.agents)
+            if len(result.agents) < before:
+                logger.info(f"Deduped {before - len(result.agents)} duplicate agent(s)")
 
         # Step 4: Filter to verified agents if requested
         if require_verified:
@@ -672,12 +801,7 @@ class LADClient:
         # Step 2: Request consent for each agent
         approved_agents = []
         for agent in result.agents:
-            consent_request = ConsentRequest(
-                agent=agent,
-                verified=agent.verified,
-                verification_method=agent.verification_method,
-                capabilities=agent.capabilities_preview,
-            )
+            consent_request = self.create_consent_request(agent)
 
             logger.debug(f"Requesting consent for agent: {agent.name}")
 
@@ -703,6 +827,22 @@ class LADClient:
 
         return result
 
+    @staticmethod
+    def _consent_capabilities(agent: DiscoveredAgent) -> tuple[list[str], str]:
+        """Choose which capabilities to show on the consent screen.
+
+        Prefer the skills from the verified AgentCard; the discovery-document
+        ``capabilities_preview`` is network-supplied and unverifiable, so it must
+        not be presented as authoritative (spec section 4.3 / 4.4).
+        """
+        if agent.verified and agent.agent_card:
+            skills = agent.agent_card.get("skills") or []
+            skill_ids = [s.get("id", "") for s in skills if isinstance(s, dict)]
+            skill_ids = [s for s in skill_ids if s]
+            if skill_ids:
+                return skill_ids, "agent_card"
+        return agent.capabilities_preview, "preview"
+
     def create_consent_request(self, agent: DiscoveredAgent) -> ConsentRequest:
         """Create a consent request for an agent.
 
@@ -715,11 +855,14 @@ class LADClient:
         Returns:
             ConsentRequest ready for user presentation.
         """
+        capabilities, source = self._consent_capabilities(agent)
         return ConsentRequest(
             agent=agent,
             verified=agent.verified,
             verification_method=agent.verification_method,
-            capabilities=agent.capabilities_preview,
+            capabilities=capabilities,
+            channel_encrypted=agent.channel_encrypted,
+            capabilities_source=source,
         )
 
 
@@ -850,12 +993,14 @@ async def main():
         print(f"{'='*50}")
         print(f"  Description: {request.agent.description}")
         print(f"  Role: {request.agent.role}")
-        print(f"  Verified: {'Yes' if request.verified else 'No'} ({request.verification_method or 'none'})")
-        print(f"  Capabilities: {', '.join(request.capabilities)}")
+        print(f"  Channel: {'Encrypted (TLS)' if request.channel_encrypted else 'NOT encrypted'}")
+        print(f"  Identity: {'Verified — ' + (request.verification_method or '') if request.verified else 'NOT verified'}")
+        print(f"  Capabilities ({request.capabilities_source}): {', '.join(request.capabilities)}")
         print(f"  Source: {request.agent.source}")
 
         if not request.verified:
-            print("\n  ⚠️  WARNING: This agent is NOT verified!")
+            print("\n  ⚠️  WARNING: This agent's identity is NOT verified.")
+            print("      An encrypted channel alone does not prove who this agent is.")
 
         while True:
             response = input("\n  Connect to this agent? [y/n/skip]: ").strip().lower()
@@ -893,7 +1038,8 @@ async def main():
         print(f"    AgentCard URL: {agent.agent_card_url}")
         print(f"    Capabilities: {agent.capabilities_preview}")
         print(f"    Source: {agent.source}")
-        print(f"    Verified: {agent.verified} ({agent.verification_method or 'none'})")
+        print(f"    Channel encrypted (TLS): {agent.channel_encrypted}")
+        print(f"    Identity verified: {agent.verified} ({agent.verification_method or 'none'})")
         if agent.verification_error:
             print(f"    Verification Error: {agent.verification_error}")
         if agent.agent_card:

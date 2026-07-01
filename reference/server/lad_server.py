@@ -15,6 +15,7 @@ Security Notes:
 import argparse
 import logging
 import os
+import re
 import socket
 from contextlib import asynccontextmanager
 from typing import Any, Optional
@@ -35,6 +36,11 @@ except ImportError:
 
 # Configure logging
 logger = logging.getLogger("lad_a2a.server")
+
+# The A2A protocol version this reference targets. This is the AgentCard's
+# `protocolVersion` (a single string per the A2A schema) and is a DIFFERENT
+# version axis from the LAD-A2A discovery version and the agent's own version.
+A2A_PROTOCOL_VERSION = "0.2.5"
 
 
 def configure_logging(level: str = "INFO") -> None:
@@ -164,14 +170,19 @@ class NetworkInfo(BaseModel):
 
 
 class DiscoveredAgentInfo(BaseModel):
-    """Agent information in discovery response."""
+    """Agent information in discovery response.
+
+    Only `name` and `agent_card_url` are required (matching the JSON schema);
+    `description`/`role` are optional so a minimal peer object round-trips.
+    """
     name: str = Field(..., description="Human-readable agent name")
-    description: str = Field(..., description="Agent description")
-    role: str = Field(..., description="Agent role (e.g., 'hotel-concierge', 'assistant')")
-    agent_card_url: str = Field(..., description="URL to fetch the full A2A AgentCard")
+    agent_card_url: str = Field(..., description="HTTPS URL to fetch the full A2A AgentCard")
+    id: Optional[str] = Field(None, description="Stable identity key (DID)")
+    description: Optional[str] = Field(None, description="Agent description")
+    role: Optional[str] = Field(None, description="Agent role (advisory)")
     capabilities_preview: list[str] = Field(
         default_factory=list,
-        description="Preview of agent capabilities for UI display"
+        description="Untrusted UI hint; authoritative skills are in the verified AgentCard"
     )
 
 
@@ -181,7 +192,7 @@ class DiscoveryResponse(BaseModel):
     Per LAD-A2A spec section 3.2, this endpoint returns a list of
     discoverable agents on the network.
     """
-    version: str = Field("1.0", description="LAD-A2A protocol version")
+    version: str = Field("0.2", description="LAD-A2A protocol version (MAJOR.MINOR)")
     network: Optional[NetworkInfo] = Field(None, description="Network information")
     agents: list[DiscoveredAgentInfo] = Field(
         default_factory=list,
@@ -249,6 +260,10 @@ class LADServer:
         self.host = host
         self.port = port
         self.network_ssid = network_ssid
+        # Whether the operator explicitly supplied a realm. A realm that was
+        # defaulted from the machine hostname is a display value only and MUST
+        # NOT be advertised as a verifiable organizational identity.
+        self._realm_explicit = bool(network_realm)
         self.network_realm = network_realm or socket.gethostname() or "local"
         self.enable_mdns = enable_mdns
         self.tls_config = tls_config or TLSConfig()
@@ -279,6 +294,41 @@ class LADServer:
     def _get_url_scheme(self) -> str:
         """Get URL scheme based on TLS configuration."""
         return "https" if self.tls_config.enabled else "http"
+
+    @staticmethod
+    def _is_domain(value: Optional[str]) -> bool:
+        """Whether a string is shaped like a DNS domain (not an IP or hostname label).
+
+        Used to decide whether a realm can be advertised as a verifiable
+        organizational identity in the AgentCard.
+        """
+        if not value or "." not in value or " " in value:
+            return False
+        # Reject bare IPv4 literals.
+        parts = value.split(".")
+        if len(parts) == 4 and all(p.isdigit() for p in parts):
+            return False
+        return all(part and part.replace("-", "").isalnum() for part in parts)
+
+    @property
+    def identity_domain(self) -> Optional[str]:
+        """The verifiable organization domain, or None if not established.
+
+        Only an explicitly-configured, domain-shaped realm qualifies; a hostname
+        default never becomes an identity claim.
+        """
+        if self._realm_explicit and self._is_domain(self.network_realm):
+            return self.network_realm.lower()
+        return None
+
+    @property
+    def agent_did(self) -> Optional[str]:
+        """A did:web identity key for this agent, when it has a verifiable domain."""
+        domain = self.identity_domain
+        if not domain:
+            return None
+        slug = re.sub(r"[^a-z0-9]+", "-", self.agent_config.name.lower()).strip("-") or "agent"
+        return f"did:web:{domain}#{slug}"
 
     def _get_local_ip(self) -> str:
         """Get local IP address for network advertisement.
@@ -316,16 +366,18 @@ class LADServer:
 
         local_ip = self._get_local_ip()
 
-        # TXT record per LAD-A2A spec
+        # TXT record per LAD-A2A spec section 2.1 (closed key set).
         txt_records = {
             "path": "/.well-known/agent.json",
-            "v": "1",
-            "org": self.network_realm,
+            "v": "0",  # LAD-A2A MAJOR version (pre-release track)
+            "org": self.network_realm,  # display-only label, not an identity claim
         }
+        if self.agent_did:
+            txt_records["id"] = self.agent_did
 
         self.service_info = ServiceInfo(
-            "_a2a._tcp.local.",
-            f"{self.agent_config.name}._a2a._tcp.local.",
+            "_lad-a2a._tcp.local.",
+            f"{self.agent_config.name}._lad-a2a._tcp.local.",
             addresses=[socket.inet_aton(local_ip)],
             port=self.port,
             properties=txt_records,
@@ -335,7 +387,7 @@ class LADServer:
         try:
             self.zeroconf.register_service(self.service_info)
             logger.info(
-                f"mDNS advertising: {self.agent_config.name}._a2a._tcp.local "
+                f"mDNS advertising: {self.agent_config.name}._lad-a2a._tcp.local "
                 f"on {local_ip}:{self.port}"
             )
         except Exception as e:
@@ -358,17 +410,19 @@ class LADServer:
         scheme = self._get_url_scheme()
         base_url = f"{scheme}://{self._get_local_ip()}:{self.port}"
 
+        agent_entry = {
+            "name": self.agent_config.name,
+            "description": self.agent_config.description,
+            "role": self.agent_config.role,
+            "agent_card_url": f"{base_url}/.well-known/agent.json",
+            "capabilities_preview": self.agent_config.capabilities_preview,
+        }
+        if self.agent_did:
+            agent_entry = {"id": self.agent_did, **agent_entry}
+
         response = {
-            "version": "1.0",
-            "agents": [
-                {
-                    "name": self.agent_config.name,
-                    "description": self.agent_config.description,
-                    "role": self.agent_config.role,
-                    "agent_card_url": f"{base_url}/.well-known/agent.json",
-                    "capabilities_preview": self.agent_config.capabilities_preview,
-                }
-            ]
+            "version": "0.2",
+            "agents": [agent_entry],
         }
 
         # Add network info if available
@@ -393,7 +447,7 @@ class LADServer:
             "description": self.agent_config.description,
             "url": base_url,  # A2A JSON-RPC endpoint (base URL per A2A spec)
             "version": self.agent_config.version,
-            "protocolVersions": ["1.0"],  # Required by A2A spec
+            "protocolVersion": A2A_PROTOCOL_VERSION,  # A2A requires a singular string
             "capabilities": {
                 "streaming": False,
                 "pushNotifications": False,
@@ -410,10 +464,13 @@ class LADServer:
                 }
                 for skill in self.agent_config.capabilities_preview
             ],
-            "provider": {
-                "organization": self.network_realm or self.agent_config.name,
-            },
         }
+
+        # Only advertise a provider organization that is a verifiable domain.
+        # A hostname/display name here would be a false identity claim that a
+        # client's domain verification could neither confirm nor safely use.
+        if self.identity_domain:
+            card["provider"] = {"organization": self.identity_domain}
 
         # Add authentication requirements if configured
         if self.agent_config.auth_config:
@@ -480,8 +537,8 @@ Per LAD-A2A specification:
 
 ### Documentation
 
-- [LAD-A2A Specification](https://github.com/lad-a2a/spec)
-- [A2A Protocol](https://github.com/google/a2a-protocol)
+- [LAD-A2A Specification](https://lad-a2a.org/spec/spec/)
+- [A2A Protocol](https://a2a-protocol.org)
 """,
         version="0.1.0",
         lifespan=lifespan,

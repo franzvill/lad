@@ -34,6 +34,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Trust Model: trust-model.md
   - Specification:
     - Overview: spec/index.md
     - Full Specification: spec/spec.md

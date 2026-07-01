@@ -25,9 +25,9 @@ When a device joins a network—hotel Wi-Fi, office LAN, cruise ship, hospital c
 
 LAD-A2A provides:
 
-- **Zero-Configuration Discovery** via mDNS/DNS-SD, well-known endpoints, or DHCP
-- **Defense in Depth** with TLS, signed AgentCards, DIDs, and user consent
-- **Graceful Degradation** from consumer Wi-Fi to enterprise networks
+- **Zero-Configuration Discovery** via mDNS/DNS-SD (`_lad-a2a._tcp`) and well-known endpoints
+- **An honest trust model** that separates *channel authentication* (TLS) from *identity verification* (domain/JWS/DID), because on a hostile network TLS to an attacker-chosen host proves nothing about identity — see the [Trust Model](trust-model.md)
+- **Explicit user consent**, keyed to a verified identity, before any first contact
 - **Ecosystem Alignment** that hands off to standard A2A once discovery completes
 
 ## How It Fits
@@ -85,12 +85,14 @@ pip install -e .
 # Start a discovery server (development only)
 python -m server.lad_server --name "My Agent" --port 8080
 
-# Discover agents
-python -m client.lad_client --url http://localhost:8080
+# Discover agents. --no-verify-tls opts into plaintext for local dev; without it
+# the client refuses non-https URLs (a discovery failure), which is the correct
+# production behavior.
+python -m client.lad_client --url http://localhost:8080 --no-verify-tls
 ```
 
 !!! warning "TLS Required in Production"
-    The example above uses HTTP for local development only. In production, **all endpoints MUST use TLS 1.2+** per the [security requirements](spec/spec.md#4-security-requirements).
+    The example above uses HTTP for local development only. In production, **all endpoints MUST use TLS 1.2+** and a non-https URL is a *discovery failure*, per the [security requirements](spec/spec.md#4-security-requirements) and the [Trust Model](trust-model.md).
 
 ## Use Cases
 

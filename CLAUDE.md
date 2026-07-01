@@ -8,7 +8,7 @@ LAD-A2A (Local Agent Discovery for A2A) is an open protocol specification and re
 
 **Key concepts:**
 - Discovery layer between physical networks and A2A protocol (MCP handles tools, A2A handles communication, LAD-A2A handles discovery)
-- Zero-configuration discovery via mDNS/DNS-SD (`_a2a._tcp.local`), well-known endpoints (`/.well-known/lad/agents`), and DHCP
+- Zero-configuration discovery via mDNS/DNS-SD (`_lad-a2a._tcp.local`), well-known endpoints (`/.well-known/lad/agents`), and DHCP
 - Security model assumes local networks are hostile by default
 
 ## Common Commands
@@ -19,7 +19,7 @@ cd reference
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Run tests (35 tests for conformance and security)
+# Run tests (conformance, security, and v0.2 hardening)
 pytest tests/ -v
 
 # Run single test
@@ -69,14 +69,14 @@ mkdocs build          # Build static site
 
 **Server (`server/lad_server.py`):**
 - `LADServer` class handles mDNS advertisement and well-known endpoints
-- Advertises via `_a2a._tcp.local` with TXT records (path, v, org)
+- Advertises via `_lad-a2a._tcp.local` with TXT records (path, v, id, org)
 - FastAPI endpoints: `/.well-known/lad/agents` (discovery), `/.well-known/agent.json` (A2A AgentCard)
 - TLS support via `--ssl-certfile` and `--ssl-keyfile`
 - AgentCard signing via `--signing-key` (returns JWS when client requests `application/jose`)
 
 **Client (`client/lad_client.py`):**
 - `LADClient` implements layered discovery: mDNS → well-known fallback → fetch AgentCards
-- `MDNSListener` handles `_a2a._tcp.local` service discovery with proper update/remove handling
+- `MDNSListener` handles `_lad-a2a._tcp.local` service discovery with proper update/remove handling
 - Returns `DiscoveryResult` with agents list, verification status, and errors
 - `DiscoveredAgent` includes `verified`, `verification_method`, `verification_error` fields
 - Consent flow via `discover_with_consent()` with callback interface
